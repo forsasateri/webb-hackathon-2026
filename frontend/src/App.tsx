@@ -28,7 +28,7 @@ function AppContent() {
     <Layout
       style={{
         minHeight: '100vh',
-        background: '#6EC1CF',
+        background: '#80dcf3',
         display: 'flex',
         flexDirection: 'column'
       }}
