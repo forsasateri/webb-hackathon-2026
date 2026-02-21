@@ -2,17 +2,9 @@ import { Wheel } from 'react-custom-roulette';
 import { Button, Typography, Card } from 'antd';
 import { useMemo, useState } from 'react';
 
-import { getColorForString } from '../../shared';
+import { getColorForCourse } from '../../shared';
 
 import type { Course } from '../../types';
-
-// Color palette for the wheel
-const WHEEL_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', 
-  '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
-  '#F8B739', '#52B788', '#E63946', '#457B9D',
-  '#06A77D', '#F19CBB', '#A8DADC', '#E76F51'
-];
 
 interface CourseWheelProps {
   validCourses: Course[];
@@ -27,7 +19,7 @@ export const CourseWheel = ({ validCourses, setSelectedCourses }: CourseWheelPro
         () => validCourses.map((course) => ({
         option: course.courseCode,
         style: { 
-            backgroundColor: getColorForString(course.name, WHEEL_COLORS),
+            backgroundColor: getColorForCourse(course),
             textColor: 'white',
         },
         })),

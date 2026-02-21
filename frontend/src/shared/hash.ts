@@ -9,13 +9,3 @@ export const hashString = (str: string): number => {
   }
   return Math.abs(hash);
 };
-
-/**
- * Get a deterministic color for a given string
- * Always returns the same color for the same input
- */
-export const getColorForString = (str: string, colors: string[]): string => {
-  const hash = hashString(str);
-  const index = hash % colors.length;
-  return colors[index];
-};

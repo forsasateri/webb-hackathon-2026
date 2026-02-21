@@ -1,0 +1,5 @@
+*.pyc
+backend/server/src/__pycache__/__in
+*.pyc
+backend/server/src/__pycache__/__init__/*
+backend/server/src/__pycache__/__init__.cpython-314.pyc
