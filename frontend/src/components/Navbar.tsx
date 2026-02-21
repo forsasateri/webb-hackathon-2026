@@ -77,6 +77,13 @@ export const Navbar = () => {
           background: 'transparent'
         }}
       />
+
+      <Menu mode="horizontal" style={{ borderBottom: 'none', background: 'transparent' }}>
+        <Menu.Item key="debug" icon={<PlusCircleOutlined />} style={{ marginLeft: 'auto' }}>
+          <Link to="/debug">Debug</Link>
+        </Menu.Item>
+      </Menu>
+      
     </Header>
   );
 };
