@@ -52,7 +52,7 @@ database/
 | `courses` | id, code, name, description, credits, instructor, department, capacity | 课程表 |
 | `time_slots` | id, course_id(FK), period(INT), slot(ENUM 1-4) | 时间段表（一门课可占多个 period-slot 组合） |
 | `reviews` | id, user_id(FK), course_id(FK), rating(1-5), comment, created_at | 评价表 |
-| `enrollments` | id, user_id(FK), course_id(FK), enrolled_at | 选课记录表 |
+| `enrollments` | id, user_id(FK), course_id(FK), finished_status(Bool, True represents completed), enrolled_at | 选课记录表 |
 
 约束：`enrollments` 表 `(user_id, course_id)` 唯一索引；`reviews` 表 `(user_id, course_id)` 唯一索引，防止重复评价；`time_slots` 表 `(course_id, period, slot)` 唯一索引。
 
