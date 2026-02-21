@@ -347,13 +347,16 @@ def seed():
 
     reviews = []
 
+    def get_scores(min_val, max_val):
+        return [random.randint(min_val, max_val) for _ in range(6)]
+
     # Reviews from original 3 users
     for cid in random.sample(user1_courses, min(5, len(user1_courses))):
-        reviews.append((user_id_map["testuser1"], cid, random.randint(3, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser1"], cid, *get_scores(3, 5), random.choice(comments_pool)))
     for cid in random.sample(user2_courses, min(4, len(user2_courses))):
-        reviews.append((user_id_map["testuser2"], cid, random.randint(2, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser2"], cid, *get_scores(2, 5), random.choice(comments_pool)))
     for cid in random.sample(user3_courses, min(3, len(user3_courses))):
-        reviews.append((user_id_map["testuser3"], cid, random.randint(3, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser3"], cid, *get_scores(3, 5), random.choice(comments_pool)))
 
     # Reviews from simulated students (each reviews 2-5 of their enrolled courses)
     for i in range(5, 25):
@@ -364,10 +367,10 @@ def seed():
         if student_enrolled:
             n_reviews = min(len(student_enrolled), random.randint(2, 5))
             for cid in random.sample(student_enrolled, n_reviews):
-                reviews.append((uid, cid, random.randint(2, 5), random.choice(comments_pool)))
+                reviews.append((uid, cid, *get_scores(2, 5), random.choice(comments_pool)))
 
     cur.executemany(
-        "INSERT OR IGNORE INTO reviews (user_id, course_id, rating, comment) VALUES (?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO reviews (user_id, course_id, workload, difficulty, practicality, grading, teaching_quality, interest, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         reviews,
     )
     actual_reviews = cur.execute("SELECT COUNT(*) FROM reviews").fetchone()[0]

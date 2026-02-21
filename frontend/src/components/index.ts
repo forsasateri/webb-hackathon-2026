@@ -8,3 +8,4 @@ export * from './rouletteSelection/CourseRoulette';
 export * from './ReviewCard';
 export * from './ReviewSection';
 export * from './RecommendationSection';
+export * from './CourseRadarChart';

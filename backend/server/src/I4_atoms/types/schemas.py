@@ -29,7 +29,12 @@ class CourseResponse(BaseModel):
     department: str
     capacity: int
     enrolled_count: int
-    avg_rating: float | None
+    avg_workload: float | None
+    avg_difficulty: float | None
+    avg_practicality: float | None
+    avg_grading: float | None
+    avg_teaching_quality: float | None
+    avg_interest: float | None
     time_slots: list[TimeSlotResponse]
 
     model_config = {
@@ -45,7 +50,12 @@ class CourseResponse(BaseModel):
                 "department": "Institutionen för datavetenskap",
                 "capacity": 119,
                 "enrolled_count": 50,
-                "avg_rating": 4.4,
+                "avg_workload": 4.2,
+                "avg_difficulty": 4.5,
+                "avg_practicality": 4.8,
+                "avg_grading": 3.5,
+                "avg_teaching_quality": 4.0,
+                "avg_interest": 4.6,
                 "time_slots": [{"id": 1, "period": 2, "slot": 1}],
             }
         },
@@ -231,13 +241,23 @@ class EnrollmentConflict(BaseModel):
 # ─────────────────────── Reviews ───────────────────────
 
 class ReviewCreate(BaseModel):
-    rating: int = Field(..., ge=1, le=5)
+    workload: int = Field(..., ge=1, le=5)
+    difficulty: int = Field(..., ge=1, le=5)
+    practicality: int = Field(..., ge=1, le=5)
+    grading: int = Field(..., ge=1, le=5)
+    teaching_quality: int = Field(..., ge=1, le=5)
+    interest: int = Field(..., ge=1, le=5)
     comment: str | None = None
 
     model_config = {
         "json_schema_extra": {
             "example": {
-                "rating": 5,
+                "workload": 4,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 3,
+                "teaching_quality": 4,
+                "interest": 5,
                 "comment": "Great course! Highly recommended.",
             }
         }
@@ -249,7 +269,12 @@ class ReviewResponse(BaseModel):
     user_id: int
     username: str
     course_id: int
-    rating: int
+    workload: int
+    difficulty: int
+    practicality: int
+    grading: int
+    teaching_quality: int
+    interest: int
     comment: str | None
     created_at: datetime
 
@@ -261,7 +286,12 @@ class ReviewResponse(BaseModel):
                 "user_id": 1,
                 "username": "testuser1",
                 "course_id": 1,
-                "rating": 5,
+                "workload": 4,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 3,
+                "teaching_quality": 4,
+                "interest": 5,
                 "comment": "Great course! Highly recommended.",
                 "created_at": "2026-02-20T14:00:00",
             }
@@ -271,7 +301,12 @@ class ReviewResponse(BaseModel):
 
 class ReviewListResponse(BaseModel):
     reviews: list[ReviewResponse]
-    avg_rating: float | None
+    avg_workload: float | None
+    avg_difficulty: float | None
+    avg_practicality: float | None
+    avg_grading: float | None
+    avg_teaching_quality: float | None
+    avg_interest: float | None
     total: int
 
 

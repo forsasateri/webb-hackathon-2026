@@ -19,7 +19,15 @@ export interface Course {
   department: string;
   capacity: number;
   enrolled_count: number;
-  avg_rating: number | null; // This miht be changed in future
+  avg_rating: number | null;
+
+  // 6-dimension average ratings (from reviews)
+  avg_workload: number | null;
+  avg_difficulty: number | null;
+  avg_practicality: number | null;
+  avg_grading: number | null;
+  avg_teaching_quality: number | null;
+  avg_interest: number | null;
 
   //time_slot: 1 | 2 | 3 | 4;
   time_slots: TimeSlot[]; // Should always have at least one but could be multiple
@@ -68,6 +76,32 @@ export interface ConflictDetail {
   slot: number;
   conflicting_course_id: number;
   conflicting_course_name: string;
+}
+
+/** The 6 rating dimensions used in reviews */
+export const RATING_DIMENSIONS = [
+  { key: 'workload', label: 'Workload', color: '#ff4d4f' },
+  { key: 'difficulty', label: 'Difficulty', color: '#fa8c16' },
+  { key: 'practicality', label: 'Practicality', color: '#52c41a' },
+  { key: 'grading', label: 'Grading', color: '#1890ff' },
+  { key: 'teaching_quality', label: 'Teaching Quality', color: '#722ed1' },
+  { key: 'interest', label: 'Interest', color: '#eb2f96' },
+] as const;
+
+export type RatingDimensionKey = typeof RATING_DIMENSIONS[number]['key'];
+
+/** Helper: compute overall average from 6 dimensions */
+export function computeOverallAvg(course: Pick<Course, 'avg_workload' | 'avg_difficulty' | 'avg_practicality' | 'avg_grading' | 'avg_teaching_quality' | 'avg_interest'>): number | null {
+  const vals = [
+    course.avg_workload,
+    course.avg_difficulty,
+    course.avg_practicality,
+    course.avg_grading,
+    course.avg_teaching_quality,
+    course.avg_interest,
+  ].filter((v): v is number => v !== null);
+  if (vals.length === 0) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
 

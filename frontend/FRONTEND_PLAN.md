@@ -710,6 +710,70 @@ UI:
 
 ---
 
+## P6: 六边形雷达图可视化 (Hexagon Radar Chart Visualization)
+
+> **目标**：将课程的评价数据从单一的星级扩展为 6 个维度，并使用六边形雷达图进行直观展示，方便用户对比课程。
+
+### 任务列表
+
+#### P6-1: 更新前端类型定义
+
+```
+文件: src/types/course.ts
+改动:
+  1. Course 接口新增 6 个维度的平均分字段:
+     avg_workload?: number;
+     avg_difficulty?: number;
+     avg_practicality?: number;
+     avg_grading?: number;
+     avg_teaching_quality?: number;
+     avg_interest?: number;
+  2. ReviewResponse 和 ReviewCreate 接口新增这 6 个维度的评分字段 (1-5)。
+```
+
+#### P6-2: 引入图表库并创建雷达图组件
+
+```
+新建文件: src/components/CourseRadarChart.tsx
+技术: recharts (或 @ant-design/charts)
+改动:
+  1. npm install recharts
+  2. 创建 CourseRadarChart 组件，接收 Course 对象作为 prop。
+  3. 将 6 个维度的平均分映射为雷达图的数据格式。
+  4. 渲染 RadarChart，设置合适的颜色、网格和标签。
+  5. 处理空数据状态（如无评价时显示占位图或提示）。
+```
+
+#### P6-3: 课程详情页集成雷达图
+
+```
+文件: src/components/CourseDetail.tsx (或 src/pages/CoursePage.tsx)
+改动:
+  1. 引入 CourseRadarChart 组件。
+  2. 在课程详情的显著位置（如右上角或单独的卡片区域）展示雷达图。
+  3. 替换或优化原有的复杂文本统计信息，使界面更简洁直观。
+```
+
+#### P6-4: 评价表单支持 6 维度打分
+
+```
+文件: src/components/ReviewSection.tsx
+改动:
+  1. 修改提交评价的表单，将单一的 Rate 组件扩展为 6 个维度的 Rate 组件（或滑动条）。
+  2. 增加每个维度的说明标签（如：工作量、难度、实用性等）。
+  3. 提交时将 6 个维度的分数打包发送给后端。
+```
+
+#### P6-5: 评价卡片展示维度分数
+
+```
+文件: src/components/ReviewCard.tsx
+改动:
+  1. 在单条评价卡片中，除了展示评论文本，还可以用紧凑的方式（如微型雷达图、进度条或标签）展示该用户对 6 个维度的具体打分。
+```
+
+---
+
 ## 阶段依赖关系
 
 ```
@@ -720,7 +784,9 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
  │
  ├──→ P3 (评价 + 推荐 + 趣味增强)
  │
- └──→ P4 (数据驱动 + 体验打磨)  ← P3, P4 可并行
+ ├──→ P4 (数据驱动 + 体验打磨)  ← P3, P4 可并行
+ │
+ └──→ P6 (六边形雷达图可视化)  ← 依赖 P3 的评价系统和后端的 P5
        │
        ▼
       P5 (Demo 准备)
@@ -728,7 +794,7 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 
 **最小可演示版本 = P1 + P2 完成后（约 5h）**：用户能 登录→浏览→选课→退课→看课表。
 
-**完整功能版本 = P1-P4 全部完成后（约 12h）**：加上评价、推荐、Tier List 数据化、筛选、课表网格。
+**完整功能版本 = P1-P4, P6 全部完成后（约 14h）**：加上评价、推荐、Tier List 数据化、筛选、课表网格、六边形雷达图。
 
 ---
 
@@ -740,6 +806,7 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 | P2 | context/AuthContext.tsx, pages/LoginPage.tsx, pages/SchedulePage.tsx, types/course.ts(扩展) | App.tsx, Navbar.tsx, AllCoursesPage.tsx, CoursePage.tsx, CourseCard.tsx, CourseDetail.tsx |
 | P3 | components/ReviewSection.tsx, components/ReviewCard.tsx, components/RecommendationSection.tsx, pages/CourseBattlePage.tsx, components/CourseBattle/BattleCard.tsx | CoursePage.tsx, CourseRoulette.tsx, GradePage.tsx, CourseGrade.tsx, App.tsx, Navbar.tsx |
 | P4 | components/ScheduleGrid.tsx, context/ScheduleContext.tsx | Tierlist.tsx, AllCoursesPage.tsx, DebugPage.tsx |
+| P6 | components/CourseRadarChart.tsx | types/course.ts, CourseDetail.tsx, ReviewSection.tsx, ReviewCard.tsx |
 | P5 | — | 全站 Bug 修复 |
 
 ---

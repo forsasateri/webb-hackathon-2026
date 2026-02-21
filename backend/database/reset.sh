@@ -15,7 +15,7 @@ fi
 
 # Run seed script
 cd "$SCRIPT_DIR/.."
-python database/seed.py
+python3 database/seed.py
 
 echo ""
 echo "[✓] Database reset completed!"

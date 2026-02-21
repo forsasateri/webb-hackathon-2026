@@ -52,7 +52,7 @@ database/
 | `users` | id, username, email, password_hash, role, created_at | 用户表 |
 | `courses` | id, code, name, description, credits, instructor, department, capacity | 课程表 |
 | `time_slots` | id, course_id(FK), period(INT), slot(ENUM 1-4) | 时间段表（一门课可占多个 period-slot 组合） |
-| `reviews` | id, user_id(FK), course_id(FK), rating(1-5), comment, created_at | 评价表 |
+| `reviews` | id, user_id(FK), course_id(FK), workload(1-5), difficulty(1-5), practicality(1-5), grading(1-5), teaching_quality(1-5), interest(1-5), comment, created_at | 评价表（6 维度评分，P5 更新） |
 | `enrollments` | id, user_id(FK), course_id(FK), finished_status(Bool, True represents completed), enrolled_at | 选课记录表 | score (0-100, optional, only for completed courses) |
 
 约束：`enrollments` 表 `(user_id, course_id)` 唯一索引；`reviews` 表 `(user_id, course_id)` 唯一索引，防止重复评价；`time_slots` 表 `(course_id, period, slot)` 唯一索引。
@@ -75,19 +75,19 @@ database/
 | 方法 | 路径 | 说明 | 认证 | 优先级 | 实际状态 |
 |---|---|---|---|---|---|
 | `GET` | `/api/courses` | 课程列表（支持 `?keyword=&department=&credits=&period=&slot=` 筛选） | 否 | P0 | ✅ 真实 DB |
-| `GET` | `/api/courses/{id}` | 课程详情（含 period-slot 时间段、平均评分、选课人数） | 否 | P0 | ✅ 真实 DB |
+| `GET` | `/api/courses/{id}` | 课程详情（含 period-slot 时间段、六维平均评分、选课人数） | 否 | P0 | ✅ 真实 DB |
 | `POST` | `/api/auth/register` | 用户注册 | 否 | P0 | ✅ 真实 DB |
 | `POST` | `/api/auth/login` | 用户登录，返回 JWT | 否 | P0 | ⚠️ 真实 DB（testuser/testuser1 仍走 MOCK_TOKEN 快捷路径）|
 | `GET` | `/api/auth/me` | 获取当前用户信息 | 是 | P0 | ✅ 真实 DB |
 | `POST` | `/api/schedule/enroll/{course_id}` | 选课（含同 period 内 slot 冲突检测 + 容量检查） | 是 | P0 | ✅ 真实 DB |
 | `DELETE` | `/api/schedule/drop/{course_id}` | 退课 | 是 | P0 | ✅ 真实 DB |
 | `GET` | `/api/schedule` | 获取当前用户已选课程 + 时间表 | 是 | P0 | ✅ 真实 DB |
-| `GET` | `/api/courses/{id}/reviews` | 获取课程评价列表 | 否 | P1 | 🔶 Mock |
-| `POST` | `/api/courses/{id}/reviews` | 提交课程评价 | 是 | P1 | 🔶 Mock |
-| `DELETE` | `/api/reviews/{id}` | 删除自己的评价 | 是 | P2 | 🔶 Mock |
-| `GET` | `/api/courses/{id}/recommend` | **杀手锏**：选了这门课的人还选了什么 | 否 | P1 | 🔶 Mock |
+| `GET` | `/api/courses/{id}/reviews` | 获取课程评价列表 | 否 | P1 | ✅ 真实 DB |
+| `POST` | `/api/courses/{id}/reviews` | 提交课程评价 | 是 | P1 | ✅ 真实 DB |
+| `DELETE` | `/api/reviews/{id}` | 删除自己的评价 | 是 | P2 | ✅ 真实 DB |
+| `GET` | `/api/courses/{id}/recommend` | **杀手锧**：选了这门课的人还选了什么 | 否 | P1 | ✅ 真实 DB |
 
-> **当前进度（M2.6 完成后）**：9/13 端点（含健康检查共 13 个路由）使用真实 DB，4 个 Mock（reviews × 3 + recommend × 1）。另有 `GET /` 健康检查端点。
+> **当前进度（P5 完成后）**：13/13 端点使用真实 DB，0 个 Mock。评价系统已升级为 6 维度评分，50 项集成测试全部通过。
 
 > **P0** = 必须在第 8 小时前完成（核心演示流程）  
 > **P1** = 第 14 小时前完成（完整功能）  
@@ -461,6 +461,50 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
 
 ---
 
+## P5: 六边形雷达图数据支持 (Hexagon Radar Chart Support) — ✅ 已完成
+
+> **目标**：为了支持前端展示直观的六边形雷达图，我们需要将课程评价从单一的 `rating` 扩展为 6 个具体维度。
+
+**6 个评价维度 (1-5分)**：
+1. `workload` (工作量)
+2. `difficulty` (难度)
+3. `practicality` (实用性)
+4. `grading` (给分好坏)
+5. `teaching_quality` (教学质量)
+6. `interest` (趣味性)
+
+**后端改造计划**：
+1. **数据库层 (`database/schema.sql`)**：
+   - 修改 `reviews` 表，移除单一的 `rating` 字段。
+   - 新增 6 个维度字段，均添加 `CHECK (>=1 AND <=5)` 约束。
+2. **种子数据 (`database/seed.py`)**：
+   - 更新 mock reviews 的生成逻辑，为这 6 个维度生成随机的 1-5 评分。
+3. **模型层 (`server/src/I4_atoms/db/models.py`)**：
+   - 更新 `Review` SQLAlchemy 模型，映射这 6 个新字段。
+4. **Schema 层 (`server/src/I4_atoms/types/schemas.py`)**：
+   - 更新 `ReviewCreate` 和 `ReviewResponse`，包含这 6 个字段。
+   - 更新 `CourseResponse`，将 `avg_rating` 替换为 6 个 `avg_` 开头的字段（如 `avg_workload`, `avg_difficulty` 等）。
+5. **服务层 (`server/src/I3_molecules/course-service/course_service.py`)**：
+   - 修改 `_build_course_response` 函数，使用 `func.avg()` 动态计算这 6 个维度的平均分并返回。
+6. **服务层 (`server/src/I3_molecules/review-service/review_service.py`)**：
+   - 修改 `create_review` 函数，接收并保存这 6 个维度的评分。
+   - 修改 `get_reviews` 函数，计算并返回 6 个 `avg_*` 平均分。
+7. **入口层 (`server/src/I1_entry/app.py`)**：
+   - `create_review` 端点改用 `data.model_dump()` 传递 6 维度数据给 service 层。
+8. **测试 (`test_all_endpoints.py`)**：
+   - 全部 50 项测试适配新的 6 维度 schema，全部通过。
+
+**实际完成状态**：
+- ✅ 数据库 `reviews` 表 6 维度字段已创建，含 CHECK 约束
+- ✅ 种子数据已重置，12 条 mock review 各含 6 个随机评分
+- ✅ ORM 模型、Pydantic Schema、Service 层、API 层全部适配
+- ✅ `CourseResponse` 返回 `avg_workload`...`avg_interest` 6 个平均分
+- ✅ `ReviewListResponse` 返回 6 个 `avg_*` 字段
+- ✅ `ReviewCreate` 接受 6 个维度字段（各 1-5，Pydantic `Field(ge=1, le=5)` 自动验证）
+- ✅ 50 项集成测试全部通过，无回归
+
+---
+
 ## 人员分配总览
 
 | 角色 | 主线 | 阶段 1 (0-1h) | 阶段 2 (1-4h) | 阶段 3 (4-8h) | 阶段 4 (8-14h) | 阶段 5 (14-18h) | 阶段 6 (18-20h) | 阶段 7 (20-24h) |
@@ -488,7 +532,8 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
    - [x] M0：Mock API 全部可访问 + 前端拿到契约 ✅
    - [x] M1：课程查询返回真实数据（77 门 LiU 课程） ✅
    - [x] M2：核心闭环测试全通过（9 个 Real DB 端点 + 40 项集成测试） ✅
-   - [ ] M3：全部 12 个端点真实可用（待完成：reviews × 3 + recommend × 1）
+   - [x] M3：全部 12 个端点真实可用（reviews × 3 + recommend × 1 已替换为真实 DB）50 项集成测试全部通过） ✅
+   - [x] P5：六边形雷达图数据支持完成（评价 6 维度 + 全栈改造 + 50 项测试通过） ✅
    - [ ] M4：架构验证 6 项全通过
    - [ ] M5：公网可访问 + Demo 路径零 bug
 
@@ -545,7 +590,10 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
 | M2 阶段 schedule 端点已替换为真实 DB | M2 完成时 schedule 三个端点仍为 Mock | service 层已写好但 app.py 未替换 Mock 函数体，在 M2.6 hotfix 中修复 |
 | 12 个业务端点 | 13 个路由（含 `GET /` 健康检查） | 额外增加了健康检查端点 |
 | 无集成测试 | `test_all_endpoints.py`（40 项测试） | M2.6 hotfix 中新增，覆盖全部 13 个路由的正常和异常路径 |
-| `app.py` 中 MOCK 数据已清除 | MOCK_COURSES/MOCK_SCHEDULE/MOCK_REVIEWS/MOCK_RECOMMENDATIONS 常量仍保留 | reviews/recommend 端点仍为 Mock，待 M3 替换后可清除。schedule 端点已不再使用这些 Mock 数据 |
+| `app.py` 中 MOCK 数据已清除 | MOCK_COURSES/MOCK_SCHEDULE/MOCK_REVIEWS/MOCK_RECOMMENDATIONS 常量已删除 | M3 完成后所有 Mock 已替换，仅保留 MOCK_TOKEN/MOCK_USER 供前端联调 |
+| 单一 `rating(1-5)` 评分 | 6 维度评分（workload/difficulty/practicality/grading/teaching_quality/interest，各 1-5） | P5 改造：支持前端六边形雷达图展示。DB/Model/Schema/Service/API/Tests 全栈适配，50 项测试通过 |
+| `avg_rating` 单一平均分 | 6 个 `avg_*` 字段（`avg_workload`...`avg_interest`） | P5 改造：`CourseResponse` 和 `ReviewListResponse` 均返回 6 个维度的平均分 |
+| `create_review(db, user_id, course_id, rating, comment)` | `create_review(db, user_id, course_id, review_data_dict)` | P5 改造：使用 `data.model_dump()` 传递 dict，service 层用 `Review(**review_data)` 构造 |
 
 ---
 

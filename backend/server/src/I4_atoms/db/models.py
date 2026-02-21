@@ -59,13 +59,23 @@ class Review(Base):
     __tablename__ = "reviews"
     __table_args__ = (
         UniqueConstraint("user_id", "course_id"),
-        CheckConstraint("rating >= 1 AND rating <= 5"),
+        CheckConstraint("workload >= 1 AND workload <= 5"),
+        CheckConstraint("difficulty >= 1 AND difficulty <= 5"),
+        CheckConstraint("practicality >= 1 AND practicality <= 5"),
+        CheckConstraint("grading >= 1 AND grading <= 5"),
+        CheckConstraint("teaching_quality >= 1 AND teaching_quality <= 5"),
+        CheckConstraint("interest >= 1 AND interest <= 5"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
-    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    workload: Mapped[int] = mapped_column(Integer, nullable=False)
+    difficulty: Mapped[int] = mapped_column(Integer, nullable=False)
+    practicality: Mapped[int] = mapped_column(Integer, nullable=False)
+    grading: Mapped[int] = mapped_column(Integer, nullable=False)
+    teaching_quality: Mapped[int] = mapped_column(Integer, nullable=False)
+    interest: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 

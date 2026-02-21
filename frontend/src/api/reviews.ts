@@ -6,15 +6,35 @@ export interface ReviewResponse {
     user_id: number;
     username: string;
     course_id: number;
-    rating: number;
-    comment: string;
+    workload: number;
+    difficulty: number;
+    practicality: number;
+    grading: number;
+    teaching_quality: number;
+    interest: number;
+    comment: string | null;
     created_at: string;
 }
 
 export interface ReviewsData {
     reviews: ReviewResponse[];
-    avg_rating: number | null;
+    avg_workload: number | null;
+    avg_difficulty: number | null;
+    avg_practicality: number | null;
+    avg_grading: number | null;
+    avg_teaching_quality: number | null;
+    avg_interest: number | null;
     total: number;
+}
+
+export interface ReviewCreatePayload {
+    workload: number;
+    difficulty: number;
+    practicality: number;
+    grading: number;
+    teaching_quality: number;
+    interest: number;
+    comment?: string;
 }
 
 // GET /api/courses/:courseID/reviews
@@ -28,14 +48,14 @@ export const getCourseReviews = async (courseId: number): Promise<ReviewsData> =
 }
 
 // POST /api/courses/:courseID/reviews
-export const addCourseReview = async (courseId: number, rating: number, comment: string): Promise<ReviewResponse> => {
+export const addCourseReview = async (courseId: number, payload: ReviewCreatePayload): Promise<ReviewResponse> => {
     const response = await fetch(`${BASE_URL}/courses/${courseId}/reviews`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${getAuthToken()}`
         },
-        body: JSON.stringify({ rating, comment })
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {

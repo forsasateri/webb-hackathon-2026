@@ -229,7 +229,7 @@ def create_review(
 ):
     """Submit course review (one review per user per course)"""
     try:
-        return review_create_review(db, user.id, course_id, data.rating, data.comment)
+        return review_create_review(db, user.id, course_id, data.model_dump())
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:

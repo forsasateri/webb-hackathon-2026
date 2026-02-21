@@ -14,6 +14,7 @@
 | **M2.5: Hotfix** | ✅ 完成 | get_current_user 双重定义修复 + 前端 MOCK_TOKEN 修复 |
 | **M2.6: Hotfix + 集成测试** | ✅ 完成 | 选课端点 Mock 残留修复 + list_courses period/slot 参数修复；新增 40 项集成测试全部通过 |
 | **M3: 评价 + 推荐** | ✅ 完成 | 最后 4 个 Mock 端点替换为真实 DB；全部 13 端点 100% 真实 DB；50 项集成测试全部通过 |
+| **P5: 六边形雷达图数据支持** | ✅ 完成 | 评价从单一 rating 扩展为 6 维度（workload/difficulty/practicality/grading/teaching_quality/interest）；全栈改造：DB→Model→Schema→Service→API→Tests；50 项集成测试全部通过 |
 | M4: 4 层架构重构 | ⬜ 未开始 | |
 | M5: 测试 + 部署 | ⬜ 未开始 | |
 
@@ -103,7 +104,7 @@ python -m server.src.I1_entry
 - `users` — id, username, email, password_hash, role, created_at
 - `courses` — id, code, name, description, credits, instructor, department, capacity
 - `time_slots` — id, course_id(FK), period(INT 1-8), slot(INT 1-4, CHECK), UNIQUE(course_id, period, slot)
-- `reviews` — id, user_id(FK), course_id(FK), rating(1-5, CHECK), comment, created_at, UNIQUE(user_id, course_id)
+- `reviews` — id, user_id(FK), course_id(FK), workload(1-5, CHECK), difficulty(1-5, CHECK), practicality(1-5, CHECK), grading(1-5, CHECK), teaching_quality(1-5, CHECK), interest(1-5, CHECK), comment, created_at, UNIQUE(user_id, course_id)  *(P5 更新：单一 rating 替换为 6 维度)*
 - `enrollments` — id, user_id(FK), course_id(FK), finished_status(BOOL), score(INT 0-100, nullable, only for completed courses), enrolled_at, UNIQUE(user_id, course_id)
 
 **种子数据统计**：
@@ -113,7 +114,7 @@ python -m server.src.I1_entry
 | courses | 77 | 全部来自 `data/liu_6mics_courses.json`（LiU 6MICS 硕士项目真实课程） |
 | time_slots | 106 | 从 JSON offerings 的 semester+period+time_module 映射而来 |
 | enrollments | 22 | 随机生成 |
-| reviews | 12 | 随机生成（rating 1-5, 中文评论） |
+| reviews | 12 | 随机生成（6 维度各 1-5 分, 中文评论）（P5 更新） |
 
 **时间段映射规则**：
 - `period_id = (semester_number - 1) * 2 + period_num` → 值域 1-8
@@ -682,6 +683,117 @@ auth_get_user_by_id(db, user_id) 查数据库
 
 ---
 
+## 已完成工作（P5 — 六边形雷达图数据支持）
+
+> 对应 `Backend_plan_CH.md` P5 阶段 — 将课程评价从单一 `rating` 扩展为 6 个维度，支持前端六边形雷达图展示
+
+### 1. 变更动机
+
+原有单一 `rating(1-5)` 无法支撑前端六边形雷达图可视化需求。需要 6 个维度：
+- `workload`（工作量）
+- `difficulty`（难度）
+- `practicality`（实用性）
+- `grading`（给分好坏）
+- `teaching_quality`（教学质量）
+- `interest`（趣味性）
+
+### 2. 数据库层变更
+
+- **`database/schema.sql`** ✅
+  - `reviews` 表移除 `rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5)`
+  - 新增 6 个维度字段，各自带 `CHECK (>= 1 AND <= 5)` 约束：
+    ```sql
+    workload INTEGER NOT NULL CHECK(workload >= 1 AND workload <= 5),
+    difficulty INTEGER NOT NULL CHECK(difficulty >= 1 AND difficulty <= 5),
+    practicality INTEGER NOT NULL CHECK(practicality >= 1 AND practicality <= 5),
+    grading INTEGER NOT NULL CHECK(grading >= 1 AND grading <= 5),
+    teaching_quality INTEGER NOT NULL CHECK(teaching_quality >= 1 AND teaching_quality <= 5),
+    interest INTEGER NOT NULL CHECK(interest >= 1 AND interest <= 5)
+    ```
+
+- **`database/seed.py`** ✅
+  - Mock reviews 生成逻辑更新：为每个维度独立生成 `random.randint(1, 5)` 随机评分
+  - 中文评论保持不变
+
+- **`database/reset.sh`** ✅
+  - 修正 `python` → `python3`（兼容 macOS 默认环境）
+
+### 3. ORM 模型层变更
+
+- **`I4_atoms/db/models.py`** ✅
+  - `Review` 模型移除 `rating` 列
+  - 新增 6 个 `Mapped[int]` 列：`workload`、`difficulty`、`practicality`、`grading`、`teaching_quality`、`interest`
+
+### 4. Pydantic Schema 层变更
+
+- **`I4_atoms/types/schemas.py`** ✅
+  - `ReviewCreate`：移除 `rating: int`，新增 6 个 `int` 字段（均带 `Field(ge=1, le=5)` 验证）
+  - `ReviewResponse`：移除 `rating`，新增 6 个维度字段
+  - `ReviewListResponse`：移除 `avg_rating: float | None`，新增 6 个 `avg_*` 字段（`avg_workload`、`avg_difficulty`、`avg_practicality`、`avg_grading`、`avg_teaching_quality`、`avg_interest`）
+  - `CourseResponse`：移除 `avg_rating: float | None`，新增 6 个 `avg_*` 字段
+  - 全部 `json_schema_extra` Swagger 示例已同步更新
+
+### 5. 服务层变更
+
+- **`I3_molecules/course-service/course_service.py`** ✅
+  - `_build_course_response()` 函数更新：
+    - 移除 `func.avg(Review.rating)` 单一查询
+    - 新增 6 个 `func.avg()` 查询：`func.avg(Review.workload)` 等
+    - 返回 `avg_workload`、`avg_difficulty`、`avg_practicality`、`avg_grading`、`avg_teaching_quality`、`avg_interest`（四舍五入 2 位小数）
+
+- **`I3_molecules/review-service/review_service.py`** ✅
+  - `get_reviews()` 更新：
+    - 移除 `func.avg(Review.rating)` 单一查询
+    - 新增 6 个 `func.avg()` 查询
+    - `ReviewListResponse` 返回 6 个 `avg_*` 字段
+  - `create_review()` 更新：
+    - 接收 `review_data: dict` 参数（包含 6 个维度 + comment）
+    - 使用 `Review(**review_data)` 构造
+    - 返回的 `ReviewResponse` 包含 6 个维度字段
+
+- **`I1_entry/app.py`** ✅
+  - `create_review` 端点更新：从 `review_create_review(db, user.id, course_id, data.rating, data.comment)` 改为 `review_create_review(db, user.id, course_id, data.model_dump())`
+  - 使用 `model_dump()` 将 Pydantic model 转为 dict 传递给 service 层
+
+### 6. 测试更新
+
+- **`test_all_endpoints.py`** ✅ — 全部 50 项测试适配新 schema 并通过
+  - **TestCourses** 更新：
+    - `test_get_course_detail`：断言从检查 `avg_rating` 改为检查 6 个 `avg_*` 字段（`avg_workload`、`avg_difficulty`、`avg_practicality`、`avg_grading`、`avg_teaching_quality`、`avg_interest`）
+  - **TestReviews** 更新：
+    - `test_get_reviews_empty`：断言从检查 `avg_rating` 改为检查 6 个 `avg_*` 字段
+    - `test_create_review`：请求体从 `{"rating": 5, "comment": "..."}` 改为 `{"workload": 4, "difficulty": 5, "practicality": 5, "grading": 3, "teaching_quality": 4, "interest": 5, "comment": "..."}`；断言验证 6 个维度值
+    - `test_create_review_and_verify_in_list`：同上适配
+    - `test_create_review_duplicate`：请求体适配 6 维度
+    - `test_create_review_invalid_rating`：测试 `workload=0`（下界）和 `difficulty=6`（上界）两种越界情况 → 422
+    - `test_create_review_nonexistent_course`：请求体适配
+    - `test_delete_review`：请求体适配
+    - `test_delete_review_not_owner`：请求体适配
+    - `test_create_review_no_auth`：请求体适配
+    - `test_create_review_no_comment`：请求体适配，断言从 `data["rating"] == 3` 改为 `data["workload"] == 3`
+  - ✅ **50/50 全部通过**（`python -m pytest test_all_endpoints.py -v`，~21s）
+
+### 7. API 契约变更总结
+
+| 端点 | 变更前 | 变更后 |
+|---|---|---|
+| `GET /api/courses/{id}` | `avg_rating: float \| null` | `avg_workload`, `avg_difficulty`, `avg_practicality`, `avg_grading`, `avg_teaching_quality`, `avg_interest`（各为 `float \| null`） |
+| `GET /api/courses` | `CourseResponse` 含 `avg_rating` | `CourseResponse` 含 6 个 `avg_*` 字段 |
+| `GET /api/courses/{id}/reviews` | `avg_rating`, `ReviewResponse.rating` | 6 个 `avg_*` 字段 + `ReviewResponse` 含 6 个维度 |
+| `POST /api/courses/{id}/reviews` | 请求体 `{"rating": 5, "comment": "..."}` | 请求体 `{"workload": 4, "difficulty": 5, "practicality": 5, "grading": 3, "teaching_quality": 4, "interest": 5, "comment": "..."}` |
+
+### P5 验证结果
+- ✅ 数据库 schema 更新 + 种子数据重置成功
+- ✅ ORM 模型正确映射 6 个维度列
+- ✅ Pydantic schema 正确验证 6 个维度值（1-5 范围，`Field(ge=1, le=5)`）
+- ✅ `_build_course_response()` 正确计算 6 个 `avg_*` 平均分
+- ✅ `get_reviews()` 正确计算并返回 6 个 `avg_*` 平均分
+- ✅ `create_review()` 正确保存 6 个维度评分
+- ✅ 全部 50 项集成测试通过（无回归）
+- ✅ **前端可基于 6 个 `avg_*` 字段绘制六边形雷达图**
+
+---
+
 ## 下一步工作（M4: 4 层架构重构）
 
 > 对应 `Backend_plan_CH.md` 阶段 5（第 14-18 小时）— 从 app.py 单文件拆分到 4 层架构
@@ -740,8 +852,8 @@ auth_get_user_by_id(db, user_id) 查数据库
 8. **种子数据中有 238 组时间冲突对** — 已被 `test_schedule_e2e.py` 动态利用（自动查找冲突对）
 9. **测试用户密码** — testuser1/testuser2 密码均为 `password123`（bcrypt hash 存储）
 10. **已实现的 I4 文件**：`connection.py`、`models.py`、`schemas.py`（完整 — 课程 + 认证 + 选课 schema）、`password.py`、`jwt_helper.py`、`schedule_validator.py`、`review_validator.py` — **I4 原子层全部完成**
-11. **已实现的 I3 文件**：`course_service.py`、`auth_service.py`、`schedule_service.py` — 仅剩 `review_service.py` 待实现
-12. **app.py 版本号** 已更新为 `0.4.0`，MOCK 数据仍保留在文件中供剩余 4 个 Mock 端点使用（M3 完成后可清除）
+11. **已实现的 I3 文件**：`course_service.py`（含 `get_recommendations`）、`auth_service.py`、`schedule_service.py`、`review_service.py` — **I3 分子层全部完成**
+12. **app.py 版本号** 已更新为 `0.5.0`，全部 MOCK 数据常量已清除（仅保留 `MOCK_TOKEN` + `MOCK_USER`）
 13. **JWT payload 格式**：`{"sub": "用户ID", "username": "用户名", "exp": 过期时间戳}`，`sub` 是字符串类型（`str(user_id)`），使用时需 `int(payload["sub"])` 转回整数
 14. **schedule_validator 使用方式**：`check_slot_conflict(existing, new)` 入参均为 `list[tuple[int,int]]`（period, slot），返回冲突列表
 15. **冲突错误传递模式**：`schedule_service.enroll()` 检测到冲突时 raise `ValueError(dict)`，`app.py` 通过 `isinstance(e.args[0], dict)` 区分冲突（409 + detail dict）和普通业务错误（409 + 文本）
@@ -763,3 +875,6 @@ auth_get_user_by_id(db, user_id) 查数据库
 31. **已实现的 I3 文件完整列表**：`course_service.py`（含 `get_recommendations`）、`auth_service.py`、`schedule_service.py`、`review_service.py` — **I3 分子层全部完成**
 32. **测试命令**：`cd backend && source venv/bin/activate && python -m pytest test_all_endpoints.py -v`（50 项测试，约 10 秒）
 33. **M4 重构注意**：app.py 中 4 个 service 的 importlib 动态导入块（course/auth/schedule/review）在拆分到 router 文件时需要迁移到各自的 router 文件中，或在 router 中直接 import 对应 service 的 `__init__.py`
+34. **P5 评价维度变更**：评价系统已从单一 `rating(1-5)` 扩展为 6 个维度：`workload`、`difficulty`、`practicality`、`grading`、`teaching_quality`、`interest`（均 1-5 整数）。`ReviewCreate` 请求体需包含全部 6 个字段，`comment` 可选。`CourseResponse` 和 `ReviewListResponse` 中的 `avg_rating` 已替换为 6 个 `avg_*` 字段
+35. **P5 create_review 调用方式变更**：`app.py` 中 `create_review` 端点使用 `data.model_dump()` 将 Pydantic model 转为 dict 传递给 `review_create_review(db, user_id, course_id, review_data_dict)`，service 层使用 `Review(**review_data)` 构造 ORM 对象
+36. **P5 前端雷达图数据源**：前端可从 `GET /api/courses/{id}` 的 `avg_workload`...`avg_interest` 字段、或 `GET /api/courses/{id}/reviews` 的 `avg_workload`...`avg_interest` 字段获取 6 维平均分，直接用于 Recharts/Chart.js 雷达图组件

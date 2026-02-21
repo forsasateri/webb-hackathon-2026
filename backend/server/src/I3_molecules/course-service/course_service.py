@@ -25,12 +25,18 @@ def _build_course_response(course: Course, db: Session) -> CourseResponse:
         .scalar()
         or 0
     )
-    avg_rating = (
-        db.query(func.avg(Review.rating))
-        .filter(Review.course_id == course.id)
-        .scalar()
-    )
-    avg_rating = round(float(avg_rating), 2) if avg_rating is not None else None
+    
+    avgs = db.query(
+        func.avg(Review.workload),
+        func.avg(Review.difficulty),
+        func.avg(Review.practicality),
+        func.avg(Review.grading),
+        func.avg(Review.teaching_quality),
+        func.avg(Review.interest)
+    ).filter(Review.course_id == course.id).first()
+
+    def round_avg(val):
+        return round(float(val), 2) if val is not None else None
 
     time_slots = [
         TimeSlotResponse(id=ts.id, period=ts.period, slot=ts.slot)
@@ -47,7 +53,12 @@ def _build_course_response(course: Course, db: Session) -> CourseResponse:
         department=course.department,
         capacity=course.capacity,
         enrolled_count=enrolled_count,
-        avg_rating=avg_rating,
+        avg_workload=round_avg(avgs[0]) if avgs else None,
+        avg_difficulty=round_avg(avgs[1]) if avgs else None,
+        avg_practicality=round_avg(avgs[2]) if avgs else None,
+        avg_grading=round_avg(avgs[3]) if avgs else None,
+        avg_teaching_quality=round_avg(avgs[4]) if avgs else None,
+        avg_interest=round_avg(avgs[5]) if avgs else None,
         time_slots=time_slots,
     )
 

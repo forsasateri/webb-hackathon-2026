@@ -169,7 +169,7 @@ class TestCourses:
         data = r.json()
         assert data["id"] == course_id
         for field in ["code", "name", "description", "credits", "instructor", "department",
-                       "capacity", "enrolled_count", "avg_rating", "time_slots"]:
+                       "capacity", "enrolled_count", "avg_workload", "avg_difficulty", "avg_practicality", "avg_grading", "avg_teaching_quality", "avg_interest", "time_slots"]:
             assert field in data, f"Missing field: {field}"
         # time_slots should be a list
         assert isinstance(data["time_slots"], list)
@@ -547,7 +547,12 @@ class TestReviews:
         assert r.status_code == 200
         data = r.json()
         assert "reviews" in data
-        assert "avg_rating" in data
+        assert "avg_workload" in data
+        assert "avg_difficulty" in data
+        assert "avg_practicality" in data
+        assert "avg_grading" in data
+        assert "avg_teaching_quality" in data
+        assert "avg_interest" in data
         assert "total" in data
         assert isinstance(data["reviews"], list)
         assert isinstance(data["total"], int)
@@ -561,12 +566,25 @@ class TestReviews:
         """POST /api/courses/{id}/reviews creates a review in real DB."""
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 5, "comment": "Great course!"},
+            json={
+                "workload": 4,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 3,
+                "teaching_quality": 4,
+                "interest": 5,
+                "comment": "Great course!"
+            },
             headers=self.headers,
         )
         assert r.status_code == 201, f"Create review failed: {r.status_code} {r.text}"
         data = r.json()
-        assert data["rating"] == 5
+        assert data["workload"] == 4
+        assert data["difficulty"] == 5
+        assert data["practicality"] == 5
+        assert data["grading"] == 3
+        assert data["teaching_quality"] == 4
+        assert data["interest"] == 5
         assert data["comment"] == "Great course!"
         assert data["user_id"] == self.user_id
         assert data["username"] == self.username
@@ -578,7 +596,15 @@ class TestReviews:
         """Create a review then verify it appears in GET reviews."""
         client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 4, "comment": "Solid course"},
+            json={
+                "workload": 4,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 3,
+                "teaching_quality": 4,
+                "interest": 5,
+                "comment": "Solid course"
+            },
             headers=self.headers,
         )
         r = client.get(f"/api/courses/{self.course_id}/reviews")
@@ -586,21 +612,37 @@ class TestReviews:
         data = r.json()
         my_reviews = [rv for rv in data["reviews"] if rv["user_id"] == self.user_id]
         assert len(my_reviews) == 1
-        assert my_reviews[0]["rating"] == 4
+        assert my_reviews[0]["workload"] == 4
         assert my_reviews[0]["comment"] == "Solid course"
-        # avg_rating should be a number now
-        assert data["avg_rating"] is not None
+        # avg_workload should be a number now
+        assert data["avg_workload"] is not None
 
     def test_create_review_duplicate(self):
         """POST /api/courses/{id}/reviews twice returns 409."""
         client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 5, "comment": "First review"},
+            json={
+                "workload": 4,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 3,
+                "teaching_quality": 4,
+                "interest": 5,
+                "comment": "First review"
+            },
             headers=self.headers,
         )
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 3, "comment": "Duplicate"},
+            json={
+                "workload": 3,
+                "difficulty": 3,
+                "practicality": 3,
+                "grading": 3,
+                "teaching_quality": 3,
+                "interest": 3,
+                "comment": "Duplicate"
+            },
             headers=self.headers,
         )
         assert r.status_code == 409, f"Duplicate review should 409, got {r.status_code} {r.text}"
@@ -609,14 +651,45 @@ class TestReviews:
         """POST with rating=0 or rating=6 returns 422."""
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 0, "comment": "bad"},
+            json={
+                "workload": 0,
+                "difficulty": 3,
+                "practicality": 3,
+                "grading": 3,
+                "teaching_quality": 3,
+                "interest": 3,
+                "comment": "bad"
+            },
             headers=self.headers,
         )
         assert r.status_code == 422
 
+        r2 = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={
+                "workload": 3,
+                "difficulty": 6,
+                "practicality": 3,
+                "grading": 3,
+                "teaching_quality": 3,
+                "interest": 3,
+                "comment": "bad"
+            },
+            headers=self.headers,
+        )
+        assert r2.status_code == 422
+
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 6, "comment": "bad"},
+            json={
+                "workload": 3,
+                "difficulty": 3,
+                "practicality": 3,
+                "grading": 3,
+                "teaching_quality": 3,
+                "interest": 6,
+                "comment": "bad"
+            },
             headers=self.headers,
         )
         assert r.status_code == 422
@@ -625,7 +698,15 @@ class TestReviews:
         """POST /api/courses/99999/reviews returns 404."""
         r = client.post(
             "/api/courses/99999/reviews",
-            json={"rating": 5, "comment": "no course"},
+            json={
+                "workload": 5,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 5,
+                "teaching_quality": 5,
+                "interest": 5,
+                "comment": "no course"
+            },
             headers=self.headers,
         )
         assert r.status_code == 404
@@ -635,7 +716,15 @@ class TestReviews:
         # Create a review first
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 5, "comment": "To be deleted"},
+            json={
+                "workload": 5,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 5,
+                "teaching_quality": 5,
+                "interest": 5,
+                "comment": "To be deleted"
+            },
             headers=self.headers,
         )
         assert r.status_code == 201
@@ -661,7 +750,15 @@ class TestReviews:
         # Create review with current user
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 5, "comment": "My review"},
+            json={
+                "workload": 5,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 5,
+                "teaching_quality": 5,
+                "interest": 5,
+                "comment": "My review"
+            },
             headers=self.headers,
         )
         review_id = r.json()["id"]
@@ -690,19 +787,37 @@ class TestReviews:
 
     def test_create_review_no_auth(self):
         """POST /api/courses/{id}/reviews without token returns 401/403."""
-        r = client.post(f"/api/courses/{self.course_id}/reviews", json={"rating": 5, "comment": "test"})
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={
+                "workload": 5,
+                "difficulty": 5,
+                "practicality": 5,
+                "grading": 5,
+                "teaching_quality": 5,
+                "interest": 5,
+                "comment": "test"
+            }
+        )
         assert r.status_code in (401, 403)
 
     def test_create_review_no_comment(self):
         """POST /api/courses/{id}/reviews with no comment succeeds."""
         r = client.post(
             f"/api/courses/{self.course_id}/reviews",
-            json={"rating": 3},
+            json={
+                "workload": 3,
+                "difficulty": 3,
+                "practicality": 3,
+                "grading": 3,
+                "teaching_quality": 3,
+                "interest": 3
+            },
             headers=self.headers,
         )
         assert r.status_code == 201, f"Create review without comment failed: {r.status_code} {r.text}"
         data = r.json()
-        assert data["rating"] == 3
+        assert data["workload"] == 3
         assert data["comment"] is None
 
 

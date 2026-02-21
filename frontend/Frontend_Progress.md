@@ -67,8 +67,67 @@
 | P1 基础设施修复 | ✅ 完成 | API 层全部可用 |
 | P2 核心选课闭环 | ✅ 完成 | 登录/注册 UI、选课接通后端、课表页 |
 | P3 评价+推荐+趣味增强 | ✅ 完成 | 评价 CRUD、推荐展示、转盘接通后端、Course Battle |
-| P4 数据驱动+体验打磨 | ⬜ 未开始 | Tier List 数据化、筛选、课表网格 |
+| P4 数据驱动+体验打磨 | 🔄 部分完成 | AllCoursesPage 分页、CourseCard 雷达图 (Tier List 数据化、筛选、课表网格待做) |
+| P6 六边形雷达图可视化 | ✅ 完成 | CourseRadarChart 组件、BattleCard + CourseCard 均集成雷达图 |
 | P5 Demo 准备 | ⬜ 未开始 | 错误边界、UI 一致性、Demo 走查 |
+
+---
+
+## P6: 六边形雷达图可视化 ✅ 已完成
+
+### 功能更新
+
+#### P6-1: Course Radar Chart 组件
+- **文件**: `src/components/CourseRadarChart.tsx`
+- **功能**:
+  - 基于 Recharts 实现 6 维度雷达图 (Workload, Difficulty, Practicality, Grading, Teaching, Interest)
+  - 处理空数据状态，自适应尺寸
+  - 自定义 Tooltip 格式
+
+#### P6-2: Course Battle 体验优化
+- **文件**: `src/components/CourseBattle/BattleCard.tsx`
+- **功能**:
+  - **雷达图集成**: 有评分数据的课程在卡片中直接展示雷达图，直观对比
+  - **布局优化**: 调整卡片宽度和间距，适配图表显示
+  - **信息层级调整**: 简介改为默认收起 ("Show description")，避免占用过多空间
+  - **空状态处理**: 无评分课程显示 "No ratings" 标签，并自动展开文本简介作为替代
+
+#### P6-3: CourseCard 雷达图集成 + 卡片体验重构
+- **文件**: `src/components/CourseCard.tsx`
+- **问题**:
+  - 原先使用 `course.avg_rating` 字段，但后端 `/api/courses` 不返回该字段（只返回 6 个维度 `avg_workload` 等），导致所有课程显示 "No ratings yet"
+  - 简介使用 Ant Design `Paragraph ellipsis={{ expandable: true }}` 展开后无法收缩
+- **修复**:
+  - 评分计算: 改用 `computeOverallAvg()` 从 6 个维度计算综合评分
+  - **雷达图集成**: 仿照 BattleCard 设计，有评分数据时在卡片中直接渲染 `CourseRadarChart`(190px)
+  - **可收缩简介**: 有雷达图时简介默认收起显示 "Show description"，点击展开后可点 "less" 收回；无评分时显示 3 行截断简介作为替代
+  - **评分标签**: 用 `Tag` 显示 ★ 综合评分 + 学分，无评分显示 "No ratings" 标签
+  - **元信息**: 底部显示 instructor 和 department
+  - **API 修复**: `bodyStyle` 改为 `styles={{ body: ... }}`（修复 Ant Design 5.x 废弃 API 警告）
+
+#### P6-4: AllCoursesPage 分页
+- **文件**: `src/components/CourseList.tsx`
+- **改动**:
+  - 新增 Ant Design `Pagination` 组件，每页 12 门课程
+  - 翻页后自动平滑滚动到页面顶部
+  - 底部显示 "Total N courses" 总数
+  - 课程总数 ≤ 12 时不显示分页控件
+
+#### P6-5: Course 类型补充 avg_rating
+- **文件**: `src/types/course.ts`
+- **改动**: Course 接口新增 `avg_rating: number | null` 字段（后端实际返回但前端未声明）
+- **注意**: 后端 `/api/courses` 列表接口返回的 `avg_rating` 实际为 null（6 维度分数存在于 `avg_workload` 等字段），`computeOverallAvg()` 是前端计算综合分的正确方式
+
+### 变更文件总览
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/components/CourseCard.tsx` | 重构 | BattleCard 风格: 雷达图 + 可收缩简介 + Tag 评分 |
+| `src/components/CourseList.tsx` | 增强 | 分页 (12/页) + 滚动到顶部 |
+| `src/types/course.ts` | 扩展 | 新增 `avg_rating` 字段 |
+
+### TypeScript 编译
+- `npx tsc --noEmit` → 零错误
 
 ---
 
