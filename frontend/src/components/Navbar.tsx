@@ -48,6 +48,18 @@ export const Navbar = () => {
           items={menuItems}
           style={{ flex: 1, minWidth: 0 }}
         />
+        <Menu
+          theme="dark"
+          mode="horizontal"
+          selectedKeys={[]}
+          items={[
+            {
+              key: 'debug',
+              label: <Link to="/debug">Debug</Link>,
+            },
+          ]}
+          style={{ marginLeft: 'auto' }}
+        />
       </div>
     </Header>
   );

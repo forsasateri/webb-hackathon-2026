@@ -1,7 +1,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from 'antd';
 import { Navbar } from './components';
-import { HomePage, AllCoursesPage, CoursePage, CourseSelectionPage, GradePage, CourseTierListPage } from './pages';
+import { 
+  HomePage, 
+  AllCoursesPage, 
+  CoursePage, 
+  CourseSelectionPage, 
+  GradePage, 
+  CourseTierListPage,
+  DebugPage 
+} from './pages';
 
 function App() {
   return (
@@ -15,6 +23,7 @@ function App() {
           <Route path="/selection" element={<CourseSelectionPage />} />
           <Route path="/grade" element={<GradePage />} />
           <Route path="/tiers" element={<CourseTierListPage />} />
+          <Route path="/debug" element={<DebugPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>
