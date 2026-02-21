@@ -4,7 +4,9 @@ import {
   HomeOutlined,
   BookOutlined,
   SelectOutlined,
-  RiseOutlined
+  RiseOutlined,
+  PlusCircleOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 
 const { Header } = Layout;
@@ -30,7 +32,7 @@ export const Navbar = () => {
     },
     {
       key: '/grade',
-      icon: <SelectOutlined />,
+      icon: <BarChartOutlined />,
       label: <Link to="/grade">Grade</Link>
     },
     {
