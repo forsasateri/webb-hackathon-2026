@@ -1,6 +1,11 @@
 import { Layout, Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { HomeOutlined, BookOutlined, SelectOutlined, RiseOutlined } from '@ant-design/icons';
+import {
+  HomeOutlined,
+  BookOutlined,
+  SelectOutlined,
+  RiseOutlined
+} from '@ant-design/icons';
 
 const { Header } = Layout;
 
@@ -11,44 +16,65 @@ export const Navbar = () => {
     {
       key: '/',
       icon: <HomeOutlined />,
-      label: <Link to="/">Home</Link>,
+      label: <Link to="/">Home</Link>
     },
     {
       key: '/courses',
       icon: <BookOutlined />,
-      label: <Link to="/courses">All Courses</Link>,
+      label: <Link to="/courses">All Courses</Link>
     },
     {
       key: '/selection',
       icon: <SelectOutlined />,
-      label: <Link to="/selection">Course Selection</Link>,
+      label: <Link to="/selection">Course Selection</Link>
     },
     {
       key: '/grade',
       icon: <SelectOutlined />,
-      label: <Link to="/grade">Grade</Link>,
+      label: <Link to="/grade">Grade</Link>
     },
     {
       key: '/tiers',
       icon: <RiseOutlined />,
-      label: <Link to="/tiers">Course Tiers</Link>,
-    },
+      label: <Link to="/tiers">Course Tiers</Link>
+    }
   ];
 
   return (
-    <Header style={{ position: 'sticky', top: 0, zIndex: 1, width: '100%', padding: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', marginLeft: '24px', marginRight: '48px' }}>
-          Better LISAM
-        </div>
-        <Menu
-          theme="dark"
-          mode="horizontal"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          style={{ flex: 1, minWidth: 0 }}
-        />
+    <Header
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        width: '100%',
+        padding: '0 40px',
+        background: '#ffffff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        display: 'flex',
+        alignItems: 'center'
+      }}
+    >
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          marginRight: 40,
+          color: '#111827'
+        }}
+      >
+        Better LISAM
       </div>
+
+      <Menu
+        mode="horizontal"
+        selectedKeys={[location.pathname]}
+        items={menuItems}
+        style={{
+          flex: 1,
+          borderBottom: 'none',
+          background: 'transparent'
+        }}
+      />
     </Header>
   );
 };

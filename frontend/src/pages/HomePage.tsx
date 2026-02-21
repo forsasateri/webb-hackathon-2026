@@ -17,17 +17,33 @@ export const HomePage = () => {
         </Paragraph>
         <Space size="large">
           <Button
-            type="primary"
             size="large"
             icon={<BookOutlined />}
             onClick={() => navigate('/courses')}
+            style={{
+              background: '#E6F6F8',
+              borderColor: '#4FA9B7',
+              color: '#2F6F79',
+              borderWidth: 2,
+              borderRadius: 12,
+              padding: '0 24px'
+            }}
           >
             Browse All Courses
           </Button>
+
           <Button
             size="large"
             icon={<SelectOutlined />}
             onClick={() => navigate('/selection')}
+            style={{
+              background: '#E6F6F8',
+              borderColor: '#4FA9B7',
+              color: '#2F6F79',
+              borderWidth: 2,
+              borderRadius: 12,
+              padding: '0 24px'
+            }}
           >
             Course Selection
           </Button>
