@@ -5,7 +5,7 @@ Real database queries replacing Mock endpoints for GET /api/courses and GET /api
 
 import sys, os
 
-# 确保 backend/ 在 sys.path，使 `from server.src...` 可正常 import
+# Ensure backend/ is in sys.path so `from server.src...` imports work
 _BACKEND_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)

@@ -10,7 +10,25 @@ from sqlalchemy.orm import Session
 
 from server.src.I4_atoms.db.connection import get_db
 
-# course-service 目录含连字符，通过 __init__.py 的 importlib 重导出
+# ─────────────── Helper: Auth Dependency ───────────────
+
+def get_current_user(authorization: Optional[str] = Header(None)):
+    """Verify token and return current user (Mock phase: auto-return test user for MOCK_TOKEN)"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authentication token not provided")
+    
+    # Support both "Bearer <token>" and "<token>" formats
+    token = authorization.replace("Bearer ", "").replace("bearer ", "")
+    
+    # If MOCK_TOKEN, return fixed test user
+    if token == MOCK_TOKEN:
+        return MOCK_USER
+    
+    # Future: add real JWT verification logic here
+    # Current Mock phase: accept any token and return test user
+    return MOCK_USER
+
+# course-service directory contains hyphens, re-export via __init__.py using importlib
 import importlib.util, os as _os
 _cs_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "course-service", "__init__.py")
 _cs_spec = importlib.util.spec_from_file_location("course_service_pkg", _os.path.normpath(_cs_init))
@@ -279,7 +297,16 @@ def login(
     username: str = Body(...),
     password: str = Body(...),
 ):
-    """User login, returns JWT"""
+    """User login, returns JWT (Test accounts: testuser/testuser1, any password)"""
+    # Mock phase: test accounts directly return MOCK_TOKEN for frontend convenience
+    if username in ["testuser", "testuser1"]:
+        return {
+            "access_token": MOCK_TOKEN,
+            "token_type": "bearer",
+            "user": MOCK_USER,
+        }
+    
+    # Any other username also returns success (Mock phase)
     return {
         "access_token": MOCK_TOKEN,
         "token_type": "bearer",
@@ -288,19 +315,15 @@ def login(
 
 
 @app.get("/api/auth/me", tags=["Authentication"])
-def get_me(authorization: Optional[str] = Header(None)):
+def get_me(user: dict = Depends(get_current_user)):
     """Get current user information"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
-    return MOCK_USER
+    return user
 
 # ─────────────── Enrollment Endpoints (P0) ───────────────
 
 @app.post("/api/schedule/enroll/{course_id}", tags=["Enrollment"])
-def enroll_course(course_id: int, authorization: Optional[str] = Header(None)):
+def enroll_course(course_id: int, user: dict = Depends(get_current_user)):
     """Enroll in course (with conflict detection + capacity check)"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
     # Mock: TDDE01(id=30) and TDDD38(id=22) both at period=2/slot=1 conflict
     # Assuming user already enrolled in TDDD38, enrolling in TDDE01 triggers conflict
     if course_id == 30:
@@ -333,18 +356,14 @@ def enroll_course(course_id: int, authorization: Optional[str] = Header(None)):
 
 
 @app.delete("/api/schedule/drop/{course_id}", tags=["Enrollment"])
-def drop_course(course_id: int, authorization: Optional[str] = Header(None)):
+def drop_course(course_id: int, user: dict = Depends(get_current_user)):
     """Drop course"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
     return {"message": "Course dropped successfully", "course_id": course_id}
 
 
 @app.get("/api/schedule", tags=["Enrollment"])
-def get_schedule(authorization: Optional[str] = Header(None)):
+def get_schedule(user: dict = Depends(get_current_user)):
     """Get current user's enrolled courses + schedule"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
     return {"schedule": MOCK_SCHEDULE, "total_credits": 12}
 
 # ─────────────── Review Endpoints (P1) ───────────────
@@ -364,11 +383,9 @@ def create_review(
     course_id: int,
     rating: int = Body(..., ge=1, le=5),
     comment: str = Body(...),
-    authorization: Optional[str] = Header(None),
+    user: dict = Depends(get_current_user),
 ):
     """Submit course review"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
     return {
         "id": 3,
         "user_id": 1,
@@ -381,10 +398,8 @@ def create_review(
 
 
 @app.delete("/api/reviews/{review_id}", tags=["Reviews"])
-def delete_review(review_id: int, authorization: Optional[str] = Header(None)):
+def delete_review(review_id: int, user: dict = Depends(get_current_user)):
     """Delete own review"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
     return {"message": "Review deleted", "review_id": review_id}
 
 # ─────────────── Recommendation Endpoints (P1) ───────────────
