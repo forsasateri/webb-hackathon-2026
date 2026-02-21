@@ -4,6 +4,6 @@ See guidelines.md
 
 ## Getting Started
 
-npm install
+npm install --legacy-peer-deps
 
 npm run dev
