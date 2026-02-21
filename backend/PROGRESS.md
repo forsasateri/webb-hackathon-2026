@@ -13,7 +13,7 @@
 | **M2: 认证 + 选课（含冲突检测）** | ✅ 完成 | Person A（认证）+ Person B（选课）均已完成；9 步交叉验证全部通过 |
 | **M2.5: Hotfix** | ✅ 完成 | get_current_user 双重定义修复 + 前端 MOCK_TOKEN 修复 |
 | **M2.6: Hotfix + 集成测试** | ✅ 完成 | 选课端点 Mock 残留修复 + list_courses period/slot 参数修复；新增 40 项集成测试全部通过 |
-| M3: 评价 + 推荐 | ⬜ 未开始 | |
+| **M3: 评价 + 推荐** | ✅ 完成 | 最后 4 个 Mock 端点替换为真实 DB；全部 13 端点 100% 真实 DB；50 项集成测试全部通过 |
 | M4: 4 层架构重构 | ⬜ 未开始 | |
 | M5: 测试 + 部署 | ⬜ 未开始 | |
 
@@ -46,14 +46,14 @@ backend/
 │   │   ├── I3_molecules/
 │   │   │   ├── auth-service/       ← 只有 __init__.py
 │   │   │   ├── course-service/     ← 已实现 course_service.py
-│   │   │   ├── review-service/     ← 只有 __init__.py
-│   │   │   └── schedule-service/   ← 只有 __init__.py
+│   │   │   ├── review-service/     ← 已实现 review_service.py
+│   │   │   └── schedule-service/   ← 已实现 schedule_service.py
 │   │   └── I4_atoms/
 │   │       ├── db/                 ← 已实现 connection.py, models.py
 │   │       ├── helpers/            ← 已实现 password.py, jwt_helper.py
-│   │       ├── types/              ← 已实现 schemas.py（部分）
+│   │       ├── types/              ← 已实现 schemas.py（完整）
 │   │       └── validators/         ← 已实现 schedule_validator.py, review_validator.py
-│   └── tests/                      ← 空
+│   └── tests/                      ← 已实现 4 个测试文件
 ├── database/
 │   ├── schema.sql                  ← 5 张表 DDL
 │   ├── seed.py                     ← 从 JSON 种子数据（280 行）
@@ -564,66 +564,167 @@ auth_get_user_by_id(db, user_id) 查数据库
 
 ---
 
-## 下一步工作（M3: 评价 + 推荐）
+## 已完成工作（M3 — 评价 + 推荐：全部端点真实 DB）
 
-> 对应 `Backend_plan_CH.md` 阶段 4 — 最后 4 个 Mock 端点替换为真实逻辑
+> 对应 `Backend_plan_CH.md` 阶段 4（第 8-14 小时）— 最后 4 个 Mock 端点替换为真实逻辑
+
+### 1. I4 原子层：补充 Pydantic Schemas
+
+- **`I4_atoms/types/schemas.py`** 从 228 行扩展至 **310+ 行** ✅
+  - **新增 Review schemas**：
+    - `ReviewCreate` — rating(1-5, Field ge/le 验证) + comment(可选)
+    - `ReviewResponse` — id, user_id, username, course_id, rating, comment, created_at，`from_attributes=True`
+    - `ReviewListResponse` — reviews 数组 + avg_rating(float|None) + total(int)
+  - **新增 Recommendation schemas**：
+    - `RecommendedCourse` — id, code, name, credits, instructor, department, co_enroll_count(int)
+    - `RecommendationResponse` — course_id + recommendations(list[RecommendedCourse])
+  - 全部新 schema 均含 `json_schema_extra` Swagger 示例
+
+### 2. I3 分子层：评价业务逻辑
+
+- **`I3_molecules/review-service/review_service.py`**（120+ 行）✅ — **新建文件**
+  - `get_reviews(db, course_id)` → 查课程是否存在 → 按 created_at 倒序查评价 → 计算 avg_rating → 返回 `ReviewListResponse`
+    - 课程不存在 raise `LookupError`
+    - 关联查询 User 表获取 username
+  - `create_review(db, user_id, course_id, rating, comment)` → 调用 `validate_rating` + `validate_comment` → 检查课程存在 → 检查重复评价（UNIQUE 约束）→ INSERT → 返回 `ReviewResponse`
+    - 课程不存在 raise `LookupError`
+    - 重复评价 raise `ValueError("You have already reviewed this course")`
+  - `delete_review(db, user_id, review_id)` → 查 review 是否存在 → 检查 user_id 是否为作者 → DELETE → 返回确认
+    - review 不存在 raise `LookupError`
+    - 非本人评价 raise `PermissionError("You can only delete your own review")`
+  - 含 `if __name__ == "__main__"` 自测代码
+
+- **`I3_molecules/review-service/__init__.py`** ✅ — 从空文件更新
+  - 使用 `importlib` 动态加载（因目录含连字符）
+  - 重导出 `get_reviews`、`create_review`、`delete_review`
+
+### 3. I3 分子层：课程推荐功能
+
+- **`I3_molecules/course-service/course_service.py`** 从 87 行扩展至 **130+ 行** ✅
+  - 新增 `get_recommendations(db, course_id, limit=5)` → "选了这门课的人还选了什么"
+    - 课程不存在 raise `LookupError`
+    - SQL 逻辑：查所有选了目标课程的用户 → 查这些用户还选了哪些其他课程 → GROUP BY + COUNT → ORDER BY co_count DESC → LIMIT 5
+    - 返回 `RecommendationResponse`（含 `co_enroll_count` 字段）
+    - 自动排除目标课程本身
+  - 新增 import：`RecommendedCourse`、`RecommendationResponse`
+
+- **`I3_molecules/course-service/__init__.py`** ✅ — 新增重导出
+  - 增加 `get_recommendations` 重导出
+
+### 4. I1 入口层：app.py 全面更新
+
+- **`I1_entry/app.py`** 从 419 行精简至 **220+ 行**（版本 **0.5.0**）✅
+  - **全部 MOCK 数据常量已清除**：`MOCK_COURSES`、`MOCK_SCHEDULE`、`MOCK_REVIEWS`、`MOCK_RECOMMENDATIONS` 全部删除
+  - 仅保留 `MOCK_TOKEN` 和 `MOCK_USER`（供 `get_current_user` 前端联调使用）
+  - 新增 `review-service` 的 importlib 动态导入（`review_get_reviews`、`review_create_review`、`review_delete_review`）
+  - 新增 `get_recommendations` 的 importlib 动态导入
+  - **4 个端点从 Mock 替换为真实 DB**：
+    - `GET /api/courses/{id}/reviews` → `review_get_reviews(db, course_id)`，`LookupError` → 404
+    - `POST /api/courses/{id}/reviews` → `review_create_review(db, user.id, course_id, data.rating, data.comment)`，使用 `ReviewCreate` Pydantic model 接收 JSON body；`LookupError` → 404，`ValueError` → 409
+    - `DELETE /api/reviews/{id}` → `review_delete_review(db, user.id, review_id)`，`LookupError` → 404，`PermissionError` → 403
+    - `GET /api/courses/{id}/recommend` → `get_recommendations(db, course_id)`，`LookupError` → 404
+  - 新增 `response_model` 类型注解：`ReviewListResponse`、`ReviewResponse`、`RecommendationResponse`
+  - 移除了未使用的 import（`Body`, `Header`）
+  - docstring 更新为 "Phase 4: All endpoints on Real DB"
+
+### 5. 当前端点状态
+
+| 方法 | 路径 | 状态 | 认证 |
+|---|---|---|---|
+| `GET` | `/` | ✅ Health Check | 否 |
+| `GET` | `/api/courses` | ✅ **真实 DB** | 否 |
+| `GET` | `/api/courses/{id}` | ✅ **真实 DB** | 否 |
+| `POST` | `/api/auth/register` | ✅ **真实 DB** | 否 |
+| `POST` | `/api/auth/login` | ✅ **真实 DB** | 否 |
+| `GET` | `/api/auth/me` | ✅ **真实 DB** | 是（Bearer JWT） |
+| `POST` | `/api/schedule/enroll/{course_id}` | ✅ **真实 DB**（含 4 层检查 + slot 冲突检测） | 是（Bearer JWT） |
+| `DELETE` | `/api/schedule/drop/{course_id}` | ✅ **真实 DB** | 是（Bearer JWT） |
+| `GET` | `/api/schedule` | ✅ **真实 DB** | 是（Bearer JWT） |
+| `GET` | `/api/courses/{id}/reviews` | ✅ **真实 DB**（M3 新增） | 否 |
+| `POST` | `/api/courses/{id}/reviews` | ✅ **真实 DB**（M3 新增，含重复检查） | 是（Bearer JWT） |
+| `DELETE` | `/api/reviews/{id}` | ✅ **真实 DB**（M3 新增，含权限检查） | 是（Bearer JWT） |
+| `GET` | `/api/courses/{id}/recommend` | ✅ **真实 DB**（M3 新增，协同选课推荐） | 否 |
+
+**真实 DB 端点：13/13（100%）🎯 | Mock 端点：0/13（0%）**
+
+### 6. 测试文件更新
+
+- **`test_all_endpoints.py`** 从 40 项扩展至 **50 项** ✅
+  - **TestReviews**（14 项，从 4 项 Mock 测试升级为 14 项真实 DB 测试）：
+    - 每个测试自动注册/登录独立用户（`pytest_review_` 前缀），测试后自动清理
+    - `test_get_reviews_empty` — 空评价列表结构验证
+    - `test_get_reviews_nonexistent_course` — 不存在课程 → 404
+    - `test_create_review` — 创建评价，验证全部返回字段（id, user_id, username, course_id, rating, comment, created_at）
+    - `test_create_review_and_verify_in_list` — 创建后 GET 验证评价出现在列表中 + avg_rating 非空
+    - `test_create_review_duplicate` — 重复评价 → 409
+    - `test_create_review_invalid_rating` — rating=0 和 rating=6 → 422（Pydantic 验证）
+    - `test_create_review_nonexistent_course` — 不存在课程 → 404
+    - `test_delete_review` — 创建→删除→验证已消失
+    - `test_delete_review_not_found` — 不存在评价 → 404
+    - `test_delete_review_not_owner` — 删除他人评价 → 403（注册第二个用户验证）
+    - `test_create_review_no_auth` — 无认证 → 401/403
+    - `test_create_review_no_comment` — 无评论创建评价成功，comment 为 null
+  - **TestRecommendations**（3 项，从 1 项 Mock 测试升级为 3 项真实 DB 测试）：
+    - `test_get_recommendations` — 验证返回结构（course_id, recommendations 数组，每项含 id/code/name/credits/instructor/department/co_enroll_count）
+    - `test_get_recommendations_nonexistent_course` — 不存在课程 → 404
+    - `test_recommendations_exclude_self` — 推荐列表不包含目标课程本身
+  - ✅ **50/50 全部通过**（`python -m pytest test_all_endpoints.py -v`，10.49s）
+
+### M3 验证结果
+- ✅ 全部 13 个端点均为真实 DB 查询（100%）
+- ✅ 评价完整流程：创建评价 → 查看评价列表（含 avg_rating）→ 删除自己的评价 → 验证已消失
+- ✅ 评价权限控制：重复评价 409、删除他人评价 403、不存在课程 404
+- ✅ 推荐功能："选了这门课的人还选了什么"协同选课推荐，自动排除目标课程
+- ✅ app.py 全部 Mock 数据常量已清除（仅保留 MOCK_TOKEN/MOCK_USER 供前端联调）
+- ✅ app.py 版本号从 0.4.0 → 0.5.0，行数从 419 行精简至 220+ 行
+- ✅ 50 项集成测试全部通过（从 M2.6 的 40 项增加 10 项）
+- ✅ 旧测试无回归（TestHealthCheck, TestCourses, TestAuth, TestSchedule, TestCrossCutting 全部通过）
+
+---
+
+## 下一步工作（M4: 4 层架构重构）
+
+> 对应 `Backend_plan_CH.md` 阶段 5（第 14-18 小时）— 从 app.py 单文件拆分到 4 层架构
 
 ### 目标
-完成全部端点的真实 DB 替换，实现评价系统 + "选了这门课的人还选了什么"推荐功能。
+把 "能跑的代码" 重构成 "符合 4 层架构的代码"。**逻辑不变，只移动文件 + 调整 import**。
 
 ### 具体任务
 
-#### 1. I4 原子层：补充 schemas
+#### 1. I2 协调层：路由拆分（Commander）
+- **`I2_coordinators/commander/auth_router.py`** — `APIRouter(prefix="/api/auth", tags=["Authentication"])`
+  - 包含 `register_endpoint`、`login_endpoint`、`get_me`
+- **`I2_coordinators/commander/course_router.py`** — `APIRouter(prefix="/api/courses", tags=["Courses"])`
+  - 包含 `list_courses_endpoint`、`get_course_endpoint`、`get_reviews`、`create_review`、`recommend_courses`
+- **`I2_coordinators/commander/schedule_router.py`** — `APIRouter(prefix="/api/schedule", tags=["Enrollment"])`
+  - 包含 `enroll_course`、`drop_course`、`get_schedule`
+- **`I2_coordinators/commander/review_router.py`** — `APIRouter(prefix="/api", tags=["Reviews"])`
+  - 包含 `delete_review`（路径 `/api/reviews/{id}` 不在 courses 前缀下）
 
-- **`I4_atoms/types/schemas.py`** 追加：
-  - `ReviewCreate` — rating(1-5) + comment
-  - `ReviewResponse` — id, user_id, username, course_id, rating, comment, created_at
-  - `ReviewListResponse` — reviews 数组 + avg_rating + total
-  - `RecommendationResponse` — 推荐课程列表
+#### 2. I2 协调层：中间件/配置
+- **`I2_coordinators/data-officer/auth_middleware.py`** — 抽取 `get_current_user` + `MOCK_TOKEN`/`MOCK_USER`
+- **`I2_coordinators/data-officer/error_handler.py`** — 全局异常处理器
+- **`I2_coordinators/diplomat/cors_config.py`** — 抽取 CORS 配置
+- **`I2_coordinators/api-docs/openapi_config.py`** — 自定义 Swagger 元数据
 
-#### 2. I3 分子层：评价 + 推荐业务逻辑
-
-- **`I3_molecules/review-service/review_service.py`**
-  - `get_reviews(db, course_id)` → 查评价列表 + 平均评分 + 总数
-  - `create_review(db, user_id, course_id, rating, comment)` → 调用 `validate_rating` / `validate_comment` → 插入（UNIQUE 约束防重复）
-  - `delete_review(db, user_id, review_id)` → 检查是否本人评价 → 删除
-
-- **推荐逻辑**（可在 course_service.py 或单独文件中）
-  - `get_recommendations(db, course_id)` → 一条 SQL："选了这门课的人还选了什么"（GROUP BY + COUNT + ORDER BY）
-
-#### 3. 替换 app.py 中最后 4 个 Mock 端点
-
-- `GET /api/courses/{id}/reviews` → 真实 DB
-- `POST /api/courses/{id}/reviews` → 真实 DB
-- `DELETE /api/reviews/{id}` → 真实 DB
-- `GET /api/courses/{id}/recommend` → 真实 DB
-
-#### 4. 全局错误处理统一
-- `ValueError` → 400/409
-- `LookupError` → 404
-- `IntegrityError` → 409
+#### 3. I1 入口层：精简 app.py
+- `app.py` 只做 `include_router` + 注册中间件 + 健康检查
+- 目标行数：< 50 行
 
 ### 验证标准
-- 全部 13 个端点均为真实 DB 查询
-- 评价流程：提交评价 → 查看评价列表 → 删除自己的评价
-- 推荐功能：选了课程 A 的人还选了哪些课
-- 可清除 app.py 中全部 MOCK 数据常量
+- 架构验证 6 项全通过（I4 不 import 上层、I3 只 import I4、无交叉依赖）
+- 全部 50 项集成测试通过（逻辑不变，只改 import）
+- `app.py` < 50 行
 
 ---
 
 ## 后续阶段提纲
 
-### M4: 4 层架构重构
-- 从 app.py 拆分路由到 I2 commander（auth_router, course_router, review_router, schedule_router）
-- 抽取中间件到 I2 data-officer
-- 抽取 CORS 到 I2 diplomat
-- app.py 简化为纯入口（include_router + 注册中间件）
-- 架构验证：I4 不 import 上层，I3 只 import I4，无交叉依赖
-
 ### M5: 测试 + 部署
-- smoke_test.py（Demo 路径自动化测试）
+- smoke_test.py（Demo 路径自动化测试：注册→登录→选课→冲突→评价→推荐→退课）
 - 边界用例测试
 - Dockerfile + 部署
+- API 对接文档
 
 ---
 
@@ -653,3 +754,12 @@ auth_get_user_by_id(db, user_id) 查数据库
 22. **course_service.list_courses() 完整签名**：`list_courses(db, keyword?, department?, credits?, period?, slot?)` — 6 个参数均可选，支持 `TimeSlot` 关联过滤
 23. **选课端点错误处理模式**：`enroll_course()` 捕获 `LookupError` → 404、`ValueError` → 409；`ValueError.args[0]` 为 dict（冲突详情）或 str（普通业务错误）
 24. **测试命令**：`cd backend && source venv/bin/activate && python -m pytest test_all_endpoints.py -v`（需先 `pip install pytest`）
+25. **M3 新增的 I3 文件**：`review_service.py`（120+ 行），已在 `review-service/__init__.py` 中通过 importlib 重导出 `get_reviews`、`create_review`、`delete_review`
+26. **M3 新增的 I4 schemas**：`ReviewCreate`、`ReviewResponse`、`ReviewListResponse`、`RecommendedCourse`、`RecommendationResponse`，全部在 `schemas.py` 末尾
+27. **推荐功能实现方式**：`course_service.py` 中的 `get_recommendations(db, course_id, limit=5)`，使用子查询：先查选了目标课程的 user_id 列表 → 查这些用户的其他 enrollment → GROUP BY course + COUNT → ORDER BY DESC → LIMIT 5
+28. **Review 错误处理三层模式**：`LookupError` → 404（课程/评价不存在）、`ValueError` → 409（重复评价）、`PermissionError` → 403（删除他人评价）。app.py 中 `delete_review` 端点同时捕获这三种异常
+29. **Review 请求体变更**：M3 将 `create_review` 端点从 `Body(...)` 参数改为 `ReviewCreate` Pydantic model（JSON body：`{"rating": 5, "comment": "..."}`），comment 字段可选（`str | None = None`）
+30. **app.py 已清除的内容**：`MOCK_COURSES`、`MOCK_SCHEDULE`、`MOCK_REVIEWS`、`MOCK_RECOMMENDATIONS` 全部删除。`Body`、`Header` import 已移除。仅保留 `MOCK_TOKEN` + `MOCK_USER`（供 `get_current_user` 和 `login_endpoint` 使用）
+31. **已实现的 I3 文件完整列表**：`course_service.py`（含 `get_recommendations`）、`auth_service.py`、`schedule_service.py`、`review_service.py` — **I3 分子层全部完成**
+32. **测试命令**：`cd backend && source venv/bin/activate && python -m pytest test_all_endpoints.py -v`（50 项测试，约 10 秒）
+33. **M4 重构注意**：app.py 中 4 个 service 的 importlib 动态导入块（course/auth/schedule/review）在拆分到 router 文件时需要迁移到各自的 router 文件中，或在 router 中直接 import 对应 service 的 `__init__.py`
