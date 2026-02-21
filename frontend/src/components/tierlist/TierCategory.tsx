@@ -40,7 +40,7 @@ export const TierCategory = ({ tier, courses }: { tier: string; courses: Course[
                     <Space size={[0, 8]} wrap>
                         {courses.map((course) => (
                             <Tag key={course.id} color={getColorForCourse(course)} variant="solid" >
-                                {course.courseCode}
+                                {course.code}
                             </Tag>
                         ))}
                     </Space>
