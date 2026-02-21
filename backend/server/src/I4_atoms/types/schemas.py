@@ -226,3 +226,82 @@ class EnrollmentConflict(BaseModel):
             }
         }
     }
+
+
+# ─────────────────────── Reviews ───────────────────────
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: str | None = None
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "rating": 5,
+                "comment": "Great course! Highly recommended.",
+            }
+        }
+    }
+
+
+class ReviewResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    course_id: int
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 1,
+                "user_id": 1,
+                "username": "testuser1",
+                "course_id": 1,
+                "rating": 5,
+                "comment": "Great course! Highly recommended.",
+                "created_at": "2026-02-20T14:00:00",
+            }
+        },
+    }
+
+
+class ReviewListResponse(BaseModel):
+    reviews: list[ReviewResponse]
+    avg_rating: float | None
+    total: int
+
+
+# ─────────────────────── Recommendations ───────────────────────
+
+class RecommendedCourse(BaseModel):
+    id: int
+    code: str
+    name: str
+    credits: int
+    instructor: str
+    department: str
+    co_enroll_count: int
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "id": 30,
+                "code": "TDDE01",
+                "name": "Machine Learning",
+                "credits": 6,
+                "instructor": "Oleg Sysoev",
+                "department": "Institutionen för datavetenskap",
+                "co_enroll_count": 15,
+            }
+        },
+    }
+
+
+class RecommendationResponse(BaseModel):
+    course_id: int
+    recommendations: list[RecommendedCourse]

@@ -180,38 +180,148 @@ def seed():
     conflicts = cur.fetchall()
 
     # -- 6. Insert enrollment records (for recommendation feature testing) --
+    # ================================================================
+    # Strategy: Create 20 simulated students with themed enrollment patterns
+    # so that "people who enrolled in X also enrolled in Y" produces
+    # meaningful, ranked recommendations.
+    #
+    # Tracks (course groups that students tend to co-enroll):
+    #   AI Track:       TDDE01(30) Machine Learning, TDDE15(35) Advanced ML,
+    #                   TDDE07(32) Bayesian Learning, TDDE09(33) NLP,
+    #                   TDDE52(45→skip, use 52) Deep Learning(52),
+    #                   TBMI26(8) Neural Networks, TDDE05(31) AI Robotics,
+    #                   TDDC17(9) AI, TDDE13(34) Multi Agent Systems
+    #   Data Track:     TDDE01(30) ML, TDDD41(23) Data Mining, TDDE31(40) Big Data,
+    #                   TDDE16(36) Text Mining, TDDE64(48) Sports Analytics,
+    #                   TDDE07(32) Bayesian Learning, TNM098(66) Visual Data Analysis
+    #   Systems Track:  TDDC88(11) Software Engineering, TDDD04(13) Software Testing,
+    #                   TDDE41(42→use 41) Software Verification(41),
+    #                   TDDE34(41) Software Verification, TDDE41(42) Software Architectures,
+    #                   TDDE45(43) Software Design, TDDE51(44) Large Distributed Projects,
+    #                   TDDC90(12) Software Security
+    #   Networks Track: TDTS06(55) Computer Networks, TDTS21(58) Advanced Networking,
+    #                   TSIN01(73) Info Networks, TSIN02(74) Internetworking,
+    #                   TSIT02(75) Computer Security, TSIT03(76) Cryptology,
+    #                   TDDE62(47) Info Security
+    #   Graphics Track: TNM061(60) 3D Graphics, TNM067(61) Scientific Viz,
+    #                   TNM079(62) Modelling & Animation, TNM084(63) Procedural Methods,
+    #                   TNCG15(59) Advanced Rendering, TNM116(70) XR,
+    #                   TNM114(69) AI for Interactive Media
+    # ================================================================
+
     all_course_ids = list(course_id_map.values())
 
-    # testuser1 (id=1): enroll in 8 courses
-    user1_courses = random.sample(all_course_ids, min(8, len(all_course_ids)))
-    # testuser2 (id=2): partial overlap with user1
-    overlap = random.sample(user1_courses, min(4, len(user1_courses)))
-    others = [cid for cid in all_course_ids if cid not in user1_courses]
-    user2_extra = random.sample(others, min(4, len(others)))
-    user2_courses = overlap + user2_extra
-    # testuser3 (id=3): enroll in 6 courses
-    user3_courses = random.sample(all_course_ids, min(6, len(all_course_ids)))
+    # -- 6a. Insert simulated students (student5 ~ student24, 20 users) --
+    sim_pw_hash = hash_pw("password123")  # Hash once, reuse for all simulated users
+    sim_users = []
+    for i in range(5, 25):
+        sim_users.append(
+            (f"student{i}", f"student{i}@liu.se", sim_pw_hash, "student")
+        )
+    cur.executemany(
+        "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
+        sim_users,
+    )
+    print(f"[✓] Inserted {len(sim_users)} simulated students (student5–student24)")
+
+    # Build user_id lookup (get all user ids after insert)
+    cur.execute("SELECT id, username FROM users")
+    user_id_map = {row[1]: row[0] for row in cur.fetchall()}
+
+    # -- Define course ID shortcuts by code --
+    C = course_id_map  # C["TDDE01"] → course_id
+
+    # -- Define track course lists --
+    ai_core = [C["TDDE01"], C["TDDE15"], C["TDDE07"], C["TDDE09"], C["TBMI26"], C["TDDC17"]]
+    ai_extra = [C["TDDE05"], C["TDDE13"], C["TDDE70"], C["TDDD48"]]
+
+    data_core = [C["TDDE01"], C["TDDD41"], C["TDDE31"], C["TDDE16"], C["TDDE07"]]
+    data_extra = [C["TNM098"], C["TDDE64"], C["TDDE09"], C["TBMI26"]]
+
+    sys_core = [C["TDDC88"], C["TDDD04"], C["TDDE34"], C["TDDE41"], C["TDDE45"]]
+    sys_extra = [C["TDDE51"], C["TDDC90"], C["TDDE21"], C["TDDD25"]]
+
+    net_core = [C["TDTS06"], C["TDTS21"], C["TSIN01"], C["TSIN02"], C["TSIT02"]]
+    net_extra = [C["TSIT03"], C["TDDE62"], C["TSKS33"], C["TDDC90"]]
+
+    gfx_core = [C["TNM061"], C["TNM067"], C["TNM079"], C["TNM084"], C["TNCG15"]]
+    gfx_extra = [C["TNM116"], C["TNM114"], C["TNM091"], C["TNM107"]]
+
+    # math courses as cross-track electives
+    math_electives = [C["TAMS11"], C["TAMS43"], C["TAOP24"], C["TATA54"], C["TATA55"], C["TATA64"]]
+
+    # -- 6b. Assign enrollments for original 3 test users with track themes --
+    # testuser1: AI track student
+    user1_courses = list(set(ai_core + random.sample(ai_extra, 2) + random.sample(math_electives, 2)))
+    # testuser2: Data track student (overlaps with AI on TDDE01, TDDE07)
+    user2_courses = list(set(data_core + random.sample(data_extra, 2) + random.sample(math_electives, 1)))
+    # testuser3: Systems track student
+    user3_courses = list(set(sys_core + random.sample(sys_extra, 2) + random.sample(math_electives, 1)))
 
     enrollments = []
-    for cid in user1_courses:
-        finished = random.choice([True, False])
-        score = random.randint(30, 100) if finished else None
-        enrollments.append((1, cid, finished, score))
-    for cid in user2_courses:
-        finished = random.choice([True, False])
-        score = random.randint(30, 100) if finished else None
-        enrollments.append((2, cid, finished, score))
-    for cid in user3_courses:
-        finished = random.choice([True, False])
-        score = random.randint(30, 100) if finished else None
-        enrollments.append((3, cid, finished, score))
+
+    def add_enrollment(uid, cid_list):
+        for cid in cid_list:
+            finished = random.choice([True, True, True, False])  # 75% finished
+            score = random.randint(40, 100) if finished else None
+            enrollments.append((uid, cid, finished, score))
+
+    add_enrollment(user_id_map["testuser1"], user1_courses)
+    add_enrollment(user_id_map["testuser2"], user2_courses)
+    add_enrollment(user_id_map["testuser3"], user3_courses)
+
+    # -- 6c. Assign enrollments for 20 simulated students --
+    # Each student picks a primary track (core + 1-3 extra) and 1-2 cross-track electives
+    track_configs = [
+        # (primary_core, primary_extra, label)
+        (ai_core, ai_extra, "AI"),
+        (data_core, data_extra, "Data"),
+        (sys_core, sys_extra, "Systems"),
+        (net_core, net_extra, "Networks"),
+        (gfx_core, gfx_extra, "Graphics"),
+    ]
+
+    for i in range(5, 25):
+        username = f"student{i}"
+        uid = user_id_map[username]
+
+        # Assign primary track (distribute roughly evenly, with AI/Data more popular)
+        if i % 5 == 0:
+            core, extra, label = track_configs[0]  # AI
+        elif i % 5 == 1:
+            core, extra, label = track_configs[1]  # Data
+        elif i % 5 == 2:
+            core, extra, label = track_configs[2]  # Systems
+        elif i % 5 == 3:
+            core, extra, label = track_configs[3]  # Networks
+        else:
+            core, extra, label = track_configs[4]  # Graphics
+
+        # Core courses: take all or most (4-6)
+        n_core = min(len(core), random.randint(max(3, len(core) - 2), len(core)))
+        student_courses = set(random.sample(core, n_core))
+
+        # Extra courses from same track: 1-3
+        n_extra = min(len(extra), random.randint(1, 3))
+        student_courses.update(random.sample(extra, n_extra))
+
+        # Cross-track elective: pick 1-2 from math or another track
+        student_courses.update(random.sample(math_electives, random.randint(0, 2)))
+
+        # Some students also take 1 course from an adjacent track
+        if random.random() < 0.5:
+            adjacent_idx = (track_configs.index((core, extra, label)) + 1) % 5
+            adj_core = track_configs[adjacent_idx][0]
+            student_courses.add(random.choice(adj_core))
+
+        add_enrollment(uid, list(student_courses))
 
     cur.executemany(
         "INSERT OR IGNORE INTO enrollments (user_id, course_id, finished_status, score) VALUES (?, ?, ?, ?)",
         enrollments,
     )
     actual_enrollments = cur.execute("SELECT COUNT(*) FROM enrollments").fetchone()[0]
-    print(f"[✓] Inserted {actual_enrollments} enrollment records (3 users)")
+    print(f"[✓] Inserted {actual_enrollments} enrollment records ({3 + len(sim_users)} users)")
 
     # -- 7. Insert reviews --
     comments_pool = [
@@ -227,15 +337,34 @@ def seed():
         "Solid course with good structure.",
         "The assignments were very helpful for understanding.",
         "Could be improved with more interactive sessions.",
+        "One of the best courses at LiU!",
+        "Perfect balance of theory and practice.",
+        "The group project was really valuable.",
+        "Tough but fair, you'll learn a lot.",
+        "Well-structured lectures and helpful TAs.",
+        "This course changed how I think about programming.",
     ]
 
     reviews = []
+
+    # Reviews from original 3 users
     for cid in random.sample(user1_courses, min(5, len(user1_courses))):
-        reviews.append((1, cid, random.randint(3, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser1"], cid, random.randint(3, 5), random.choice(comments_pool)))
     for cid in random.sample(user2_courses, min(4, len(user2_courses))):
-        reviews.append((2, cid, random.randint(2, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser2"], cid, random.randint(2, 5), random.choice(comments_pool)))
     for cid in random.sample(user3_courses, min(3, len(user3_courses))):
-        reviews.append((3, cid, random.randint(3, 5), random.choice(comments_pool)))
+        reviews.append((user_id_map["testuser3"], cid, random.randint(3, 5), random.choice(comments_pool)))
+
+    # Reviews from simulated students (each reviews 2-5 of their enrolled courses)
+    for i in range(5, 25):
+        uid = user_id_map[f"student{i}"]
+        # Get this student's enrolled courses
+        cur.execute("SELECT course_id FROM enrollments WHERE user_id = ?", (uid,))
+        student_enrolled = [row[0] for row in cur.fetchall()]
+        if student_enrolled:
+            n_reviews = min(len(student_enrolled), random.randint(2, 5))
+            for cid in random.sample(student_enrolled, n_reviews):
+                reviews.append((uid, cid, random.randint(2, 5), random.choice(comments_pool)))
 
     cur.executemany(
         "INSERT OR IGNORE INTO reviews (user_id, course_id, rating, comment) VALUES (?, ?, ?, ?)",
@@ -254,7 +383,7 @@ def seed():
     print(f"Data source: {JSON_PATH.name}")
     print(f"  Courses: {len(course_rows)}")
     print(f"  Time slots: {len(time_slot_rows)}")
-    print(f"  Users: {len(users)}")
+    print(f"  Users: {len(users) + len(sim_users)}")
     print(f"  Enrollments: {actual_enrollments}")
     print(f"  Reviews: {actual_reviews}")
     print()
@@ -275,10 +404,24 @@ def seed():
 
     print()
     print("Test accounts:")
-    print("  testuser1 / password123 (student)")
-    print("  testuser2 / password123 (student)")
-    print("  testuser3 / password123 (student)")
+    print("  testuser1 / password123 (student, AI track)")
+    print("  testuser2 / password123 (student, Data track)")
+    print("  testuser3 / password123 (student, Systems track)")
+    print("  student5–student24 / password123 (simulated students)")
     print("  admin / admin123 (admin)")
+    print()
+    print("Track themes for recommendation testing:")
+    print("  AI Track:       TDDE01, TDDE15, TDDE07, TDDE09, TBMI26, TDDC17, ...")
+    print("  Data Track:     TDDE01, TDDD41, TDDE31, TDDE16, TDDE07, ...")
+    print("  Systems Track:  TDDC88, TDDD04, TDDE34, TDDE41, TDDE45, ...")
+    print("  Networks Track: TDTS06, TDTS21, TSIN01, TSIN02, TSIT02, ...")
+    print("  Graphics Track: TNM061, TNM067, TNM079, TNM084, TNCG15, ...")
+    print()
+    print("Recommendation test examples:")
+    print("  GET /api/courses/{TDDE01_id}/recommend → should show TDDE15, TDDE07, TDDE09 (AI+Data overlap)")
+    print("  GET /api/courses/{TDDC88_id}/recommend → should show TDDD04, TDDE34, TDDE45 (Systems track)")
+    print("  GET /api/courses/{TDTS06_id}/recommend → should show TDTS21, TSIN01, TSIT02 (Networks track)")
+    print()
 
 
 if __name__ == "__main__":

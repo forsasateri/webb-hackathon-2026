@@ -1,6 +1,6 @@
 """
 Comprehensive integration tests for ALL API endpoints.
-Tests both real DB endpoints and mock endpoints.
+All 13 endpoints now tested against real DB.
 Run: cd backend && python -m pytest test_all_endpoints.py -v
 """
 import sys, os
@@ -505,59 +505,246 @@ class TestSchedule:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 5. Review Endpoints (Mock)
+# 5. Review Endpoints (Real DB)
 # ═══════════════════════════════════════════════════════════════
 
 class TestReviews:
-    """Basic tests for review endpoints (currently mock)."""
+    """Full lifecycle tests for review endpoints against real DB."""
 
-    def test_get_reviews(self):
-        """GET /api/courses/{id}/reviews returns review list."""
-        r = client.get("/api/courses/1/reviews")
+    @pytest.fixture(autouse=True)
+    def setup_user(self):
+        """Register a test user and get a token; cleanup after test."""
+        self.username = "pytest_review_" + os.urandom(4).hex()
+        self.email = f"{self.username}@test.com"
+
+        r = client.post("/api/auth/register", json={
+            "username": self.username,
+            "email": self.email,
+            "password": TEST_PASSWORD,
+        })
+        assert r.status_code == 201, f"Setup register failed: {r.status_code} {r.text}"
+        self.user_id = r.json()["id"]
+
+        r = client.post("/api/auth/login", json={
+            "username": self.username,
+            "password": TEST_PASSWORD,
+        })
+        assert r.status_code == 200, f"Setup login failed: {r.status_code} {r.text}"
+        self.token = r.json()["access_token"]
+        self.headers = {"Authorization": f"Bearer {self.token}"}
+
+        # Pick first course from DB
+        r = client.get("/api/courses")
+        self.course_id = r.json()["courses"][0]["id"]
+
+        yield
+
+        _cleanup_user(self.username)
+
+    def test_get_reviews_empty(self):
+        """GET /api/courses/{id}/reviews returns correct structure (may be empty)."""
+        r = client.get(f"/api/courses/{self.course_id}/reviews")
         assert r.status_code == 200
         data = r.json()
         assert "reviews" in data
         assert "avg_rating" in data
         assert "total" in data
+        assert isinstance(data["reviews"], list)
+        assert isinstance(data["total"], int)
+
+    def test_get_reviews_nonexistent_course(self):
+        """GET /api/courses/99999/reviews returns 404."""
+        r = client.get("/api/courses/99999/reviews")
+        assert r.status_code == 404
 
     def test_create_review(self):
-        """POST /api/courses/{id}/reviews creates a review (mock)."""
+        """POST /api/courses/{id}/reviews creates a review in real DB."""
         r = client.post(
-            "/api/courses/1/reviews",
+            f"/api/courses/{self.course_id}/reviews",
             json={"rating": 5, "comment": "Great course!"},
-            headers={"Authorization": f"Bearer {MOCK_TOKEN}"},
+            headers=self.headers,
         )
         assert r.status_code == 201, f"Create review failed: {r.status_code} {r.text}"
         data = r.json()
         assert data["rating"] == 5
         assert data["comment"] == "Great course!"
+        assert data["user_id"] == self.user_id
+        assert data["username"] == self.username
+        assert data["course_id"] == self.course_id
+        assert "id" in data
+        assert "created_at" in data
+
+    def test_create_review_and_verify_in_list(self):
+        """Create a review then verify it appears in GET reviews."""
+        client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 4, "comment": "Solid course"},
+            headers=self.headers,
+        )
+        r = client.get(f"/api/courses/{self.course_id}/reviews")
+        assert r.status_code == 200
+        data = r.json()
+        my_reviews = [rv for rv in data["reviews"] if rv["user_id"] == self.user_id]
+        assert len(my_reviews) == 1
+        assert my_reviews[0]["rating"] == 4
+        assert my_reviews[0]["comment"] == "Solid course"
+        # avg_rating should be a number now
+        assert data["avg_rating"] is not None
+
+    def test_create_review_duplicate(self):
+        """POST /api/courses/{id}/reviews twice returns 409."""
+        client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 5, "comment": "First review"},
+            headers=self.headers,
+        )
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 3, "comment": "Duplicate"},
+            headers=self.headers,
+        )
+        assert r.status_code == 409, f"Duplicate review should 409, got {r.status_code} {r.text}"
+
+    def test_create_review_invalid_rating(self):
+        """POST with rating=0 or rating=6 returns 422."""
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 0, "comment": "bad"},
+            headers=self.headers,
+        )
+        assert r.status_code == 422
+
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 6, "comment": "bad"},
+            headers=self.headers,
+        )
+        assert r.status_code == 422
+
+    def test_create_review_nonexistent_course(self):
+        """POST /api/courses/99999/reviews returns 404."""
+        r = client.post(
+            "/api/courses/99999/reviews",
+            json={"rating": 5, "comment": "no course"},
+            headers=self.headers,
+        )
+        assert r.status_code == 404
 
     def test_delete_review(self):
-        """DELETE /api/reviews/{id} deletes review (mock)."""
-        r = client.delete(
-            "/api/reviews/1",
-            headers={"Authorization": f"Bearer {MOCK_TOKEN}"},
+        """DELETE /api/reviews/{id} deletes own review from DB."""
+        # Create a review first
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 5, "comment": "To be deleted"},
+            headers=self.headers,
         )
+        assert r.status_code == 201
+        review_id = r.json()["id"]
+
+        # Delete it
+        r = client.delete(f"/api/reviews/{review_id}", headers=self.headers)
         assert r.status_code == 200
+        assert r.json()["review_id"] == review_id
+
+        # Verify it's gone
+        r = client.get(f"/api/courses/{self.course_id}/reviews")
+        my_reviews = [rv for rv in r.json()["reviews"] if rv["user_id"] == self.user_id]
+        assert len(my_reviews) == 0
+
+    def test_delete_review_not_found(self):
+        """DELETE /api/reviews/99999 returns 404."""
+        r = client.delete("/api/reviews/99999", headers=self.headers)
+        assert r.status_code == 404
+
+    def test_delete_review_not_owner(self):
+        """DELETE another user's review returns 403."""
+        # Create review with current user
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 5, "comment": "My review"},
+            headers=self.headers,
+        )
+        review_id = r.json()["id"]
+
+        # Register another user
+        other_user = "pytest_review_other_" + os.urandom(4).hex()
+        other_email = f"{other_user}@test.com"
+        client.post("/api/auth/register", json={
+            "username": other_user,
+            "email": other_email,
+            "password": TEST_PASSWORD,
+        })
+        r = client.post("/api/auth/login", json={
+            "username": other_user,
+            "password": TEST_PASSWORD,
+        })
+        other_token = r.json()["access_token"]
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+
+        # Try to delete first user's review
+        r = client.delete(f"/api/reviews/{review_id}", headers=other_headers)
+        assert r.status_code == 403, f"Should be 403, got {r.status_code} {r.text}"
+
+        # Cleanup other user
+        _cleanup_user(other_user)
 
     def test_create_review_no_auth(self):
         """POST /api/courses/{id}/reviews without token returns 401/403."""
-        r = client.post("/api/courses/1/reviews", json={"rating": 5, "comment": "test"})
+        r = client.post(f"/api/courses/{self.course_id}/reviews", json={"rating": 5, "comment": "test"})
         assert r.status_code in (401, 403)
+
+    def test_create_review_no_comment(self):
+        """POST /api/courses/{id}/reviews with no comment succeeds."""
+        r = client.post(
+            f"/api/courses/{self.course_id}/reviews",
+            json={"rating": 3},
+            headers=self.headers,
+        )
+        assert r.status_code == 201, f"Create review without comment failed: {r.status_code} {r.text}"
+        data = r.json()
+        assert data["rating"] == 3
+        assert data["comment"] is None
 
 
 # ═══════════════════════════════════════════════════════════════
-# 6. Recommendation Endpoint (Mock)
+# 6. Recommendation Endpoint (Real DB)
 # ═══════════════════════════════════════════════════════════════
 
 class TestRecommendations:
     def test_get_recommendations(self):
-        """GET /api/courses/{id}/recommend returns recommendations."""
-        r = client.get("/api/courses/1/recommend")
+        """GET /api/courses/{id}/recommend returns recommendations from DB."""
+        # Pick a valid course
+        r = client.get("/api/courses")
+        course_id = r.json()["courses"][0]["id"]
+
+        r = client.get(f"/api/courses/{course_id}/recommend")
         assert r.status_code == 200
         data = r.json()
         assert "course_id" in data
+        assert data["course_id"] == course_id
         assert "recommendations" in data
+        assert isinstance(data["recommendations"], list)
+        # Each recommendation should have the right fields
+        for rec in data["recommendations"]:
+            for field in ["id", "code", "name", "credits", "instructor", "department", "co_enroll_count"]:
+                assert field in rec, f"Missing field: {field}"
+            assert isinstance(rec["co_enroll_count"], int)
+            assert rec["co_enroll_count"] > 0
+
+    def test_get_recommendations_nonexistent_course(self):
+        """GET /api/courses/99999/recommend returns 404."""
+        r = client.get("/api/courses/99999/recommend")
+        assert r.status_code == 404
+
+    def test_recommendations_exclude_self(self):
+        """Recommendations should not include the course itself."""
+        r = client.get("/api/courses")
+        course_id = r.json()["courses"][0]["id"]
+
+        r = client.get(f"/api/courses/{course_id}/recommend")
+        assert r.status_code == 200
+        rec_ids = [rec["id"] for rec in r.json()["recommendations"]]
+        assert course_id not in rec_ids, "Recommendations should not include the course itself"
 
 
 # ═══════════════════════════════════════════════════════════════

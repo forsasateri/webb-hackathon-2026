@@ -1,9 +1,9 @@
 """
-FastAPI Application Entry Point - Phase 3: Real Auth + Course + Schedule
-Course, Auth, and Schedule endpoints use real DB. Review/Recommend endpoints remain Mock.
+FastAPI Application Entry Point - Phase 4: All endpoints on Real DB
+All 13 endpoints now use real database queries. No Mock data remaining.
 """
 
-from fastapi import FastAPI, Header, HTTPException, Body, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session
 
 from server.src.I4_atoms.db.connection import get_db
 from server.src.I4_atoms.helpers.jwt_helper import decode_token
-from server.src.I4_atoms.types.schemas import UserRegister, UserLogin, UserResponse, TokenResponse
+from server.src.I4_atoms.types.schemas import (
+    UserRegister, UserLogin, UserResponse, TokenResponse,
+    ReviewCreate, ReviewResponse, ReviewListResponse,
+    RecommendationResponse,
+)
 from jose import JWTError
 
 # course-service directory contains hyphens, re-export via __init__.py using importlib
@@ -22,6 +26,7 @@ _cs_mod = importlib.util.module_from_spec(_cs_spec)
 _cs_spec.loader.exec_module(_cs_mod)
 list_courses = _cs_mod.list_courses
 get_course = _cs_mod.get_course
+get_recommendations = _cs_mod.get_recommendations
 
 # auth-service: directory contains hyphen, use importlib dynamic import
 _as_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "auth-service", "__init__.py")
@@ -41,7 +46,16 @@ schedule_enroll = _ss_mod.enroll
 schedule_drop = _ss_mod.drop
 schedule_get = _ss_mod.get_schedule
 
-# ─────────────────────── Mock Data (Define before using) ───────────────────────
+# review-service: directory contains hyphen, use importlib dynamic import
+_rs_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "review-service", "__init__.py")
+_rs_spec = importlib.util.spec_from_file_location("review_service_pkg", _os.path.normpath(_rs_init))
+_rs_mod = importlib.util.module_from_spec(_rs_spec)
+_rs_spec.loader.exec_module(_rs_mod)
+review_get_reviews = _rs_mod.get_reviews
+review_create_review = _rs_mod.create_review
+review_delete_review = _rs_mod.delete_review
+
+# ─────────────────────── Mock Token (for frontend dev convenience) ───────────────────────
 
 MOCK_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"
 
@@ -87,7 +101,7 @@ def get_current_user(
 app = FastAPI(
     title="Course Selection System API",
     description="Hackathon 2026 - Course Selection System Backend API (LiU 6MICS Master's Programme)",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 # CORS configuration
@@ -104,193 +118,6 @@ app.add_middleware(
 @app.get("/", tags=["Health Check"])
 def health_check():
     return {"status": "ok", "message": "Course Selection System API is running"}
-
-# ─────────────────────── Mock Data (Based on Real LiU Courses) ───────────────────────
-
-MOCK_COURSES = [
-    {
-        "id": 1,
-        "code": "TAMS11",
-        "name": "Probability and Statistics, First Course",
-        "description": "Introduction to probability and statistics with theoretical models and statistical inference.",
-        "credits": 6,
-        "instructor": "Xiangfeng Yang",
-        "department": "Matematiska institutionen",
-        "capacity": 111,
-        "enrolled_count": 45,
-        "avg_rating": 4.2,
-        "time_slots": [
-            {"id": 1, "period": 2, "slot": 4},
-            {"id": 2, "period": 3, "slot": 4},
-        ],
-    },
-    {
-        "id": 54,
-        "code": "TDDE80",
-        "name": "Professionalism in Computer Science",
-        "description": "Academic writing, sustainable development and ethics in computer science.",
-        "credits": 6,
-        "instructor": "Birgitta Thorslund",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 42,
-        "enrolled_count": 60,
-        "avg_rating": 3.8,
-        "time_slots": [
-            {"id": 78, "period": 1, "slot": 4},
-            {"id": 79, "period": 2, "slot": 3},
-        ],
-    },
-    {
-        "id": 22,
-        "code": "TDDD38",
-        "name": "Advanced Programming in C++",
-        "description": "Advanced constructions and mechanisms in C++.",
-        "credits": 6,
-        "instructor": "Klas Arvidsson",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 59,
-        "enrolled_count": 48,
-        "avg_rating": 4.5,
-        "time_slots": [
-            {"id": 30, "period": 1, "slot": 2},
-            {"id": 31, "period": 2, "slot": 1},
-            {"id": 32, "period": 3, "slot": 2},
-            {"id": 33, "period": 4, "slot": 1},
-            {"id": 34, "period": 5, "slot": 2},
-            {"id": 35, "period": 6, "slot": 1},
-        ],
-    },
-    {
-        "id": 9,
-        "code": "TDDC17",
-        "name": "Artificial Intelligence",
-        "description": "Concepts and applications of AI: problem solving, knowledge, reasoning, learning.",
-        "credits": 6,
-        "instructor": "Fredrik Heintz",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 124,
-        "enrolled_count": 55,
-        "avg_rating": 4.3,
-        "time_slots": [
-            {"id": 14, "period": 1, "slot": 3},
-        ],
-    },
-    {
-        "id": 30,
-        "code": "TDDE01",
-        "name": "Machine Learning",
-        "description": "Introduction to machine learning with focus on regression and classification.",
-        "credits": 6,
-        "instructor": "Oleg Sysoev",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 119,
-        "enrolled_count": 50,
-        "avg_rating": 4.4,
-        "time_slots": [
-            {"id": 45, "period": 2, "slot": 1},
-            {"id": 46, "period": 6, "slot": 1},
-        ],
-    },
-    {
-        "id": 55,
-        "code": "TDTS06",
-        "name": "Computer Networks",
-        "description": "Network architecture, protocols, and implementation across layers.",
-        "credits": 6,
-        "instructor": "Andrei Gurtov",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 75,
-        "enrolled_count": 35,
-        "avg_rating": 4.0,
-        "time_slots": [
-            {"id": 80, "period": 1, "slot": 1},
-            {"id": 81, "period": 5, "slot": 1},
-        ],
-    },
-    {
-        "id": 21,
-        "code": "TDDD37",
-        "name": "Database Technology",
-        "description": "Design, usage, and implementation of database systems.",
-        "credits": 6,
-        "instructor": "Olaf Hartig",
-        "department": "Institutionen för datavetenskap",
-        "capacity": 57,
-        "enrolled_count": 40,
-        "avg_rating": 4.1,
-        "time_slots": [
-            {"id": 29, "period": 2, "slot": 1},
-        ],
-    },
-]
-
-MOCK_SCHEDULE = [
-    {
-        "enrollment_id": 1,
-        "course": MOCK_COURSES[0],  # TAMS11
-        "enrolled_at": "2026-02-20T12:00:00",
-        "finished_status": False,
-        "score": None,
-    },
-    {
-        "enrollment_id": 2,
-        "course": MOCK_COURSES[2],  # TDDD38
-        "enrolled_at": "2026-02-20T12:05:00",
-        "finished_status": False,
-        "score": None,
-    },
-]
-
-MOCK_REVIEWS = [
-    {
-        "id": 1,
-        "user_id": 1,
-        "username": "testuser1",
-        "course_id": 1,
-        "rating": 5,
-        "comment": "Great course! Highly recommended.",
-        "created_at": "2026-02-20T14:00:00",
-    },
-    {
-        "id": 2,
-        "user_id": 2,
-        "username": "testuser2",
-        "course_id": 1,
-        "rating": 4,
-        "comment": "Solid course with good structure.",
-        "created_at": "2026-02-20T15:00:00",
-    },
-]
-
-MOCK_RECOMMENDATIONS = [
-    {
-        "id": 30,
-        "code": "TDDE01",
-        "name": "Machine Learning",
-        "credits": 6,
-        "instructor": "Oleg Sysoev",
-        "department": "Institutionen för datavetenskap",
-        "co_enroll_count": 15,
-    },
-    {
-        "id": 22,
-        "code": "TDDD38",
-        "name": "Advanced Programming in C++",
-        "credits": 6,
-        "instructor": "Klas Arvidsson",
-        "department": "Institutionen för datavetenskap",
-        "co_enroll_count": 12,
-    },
-    {
-        "id": 55,
-        "code": "TDTS06",
-        "name": "Computer Networks",
-        "credits": 6,
-        "instructor": "Andrei Gurtov",
-        "department": "Institutionen för datavetenskap",
-        "co_enroll_count": 8,
-    },
-]
 
 # ─────────────── Course Endpoints (P0) — REAL DB ───────────────
 
@@ -343,7 +170,6 @@ def login_endpoint(
             "user": MOCK_USER,
         }
     
-    # Any other username also returns success (Mock phase)
     try:
         return auth_login(db, data.username, data.password)
     except ValueError as e:
@@ -351,7 +177,7 @@ def login_endpoint(
 
 
 @app.get("/api/auth/me", tags=["Authentication"])
-def get_me(user: dict = Depends(get_current_user)):
+def get_me(user: UserResponse = Depends(get_current_user)):
     """Get current user information"""
     return user
 
@@ -383,45 +209,49 @@ def get_schedule(user: UserResponse = Depends(get_current_user), db: Session = D
     """Get current user's enrolled courses + schedule"""
     return schedule_get(db, user.id)
 
-# ─────────────── Review Endpoints (P1) ───────────────
+# ─────────────── Review Endpoints (P1) — REAL DB ───────────────
 
-@app.get("/api/courses/{course_id}/reviews", tags=["Reviews"])
-def get_reviews(course_id: int):
+@app.get("/api/courses/{course_id}/reviews", tags=["Reviews"], response_model=ReviewListResponse)
+def get_reviews(course_id: int, db: Session = Depends(get_db)):
     """Get course review list"""
-    return {
-        "reviews": [r for r in MOCK_REVIEWS if r["course_id"] == course_id],
-        "avg_rating": 4.5,
-        "total": 2,
-    }
+    try:
+        return review_get_reviews(db, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
-@app.post("/api/courses/{course_id}/reviews", status_code=201, tags=["Reviews"])
+@app.post("/api/courses/{course_id}/reviews", status_code=201, tags=["Reviews"], response_model=ReviewResponse)
 def create_review(
     course_id: int,
-    rating: int = Body(..., ge=1, le=5),
-    comment: str = Body(...),
-    user: dict = Depends(get_current_user),
+    data: ReviewCreate,
+    user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Submit course review"""
-    return {
-        "id": 3,
-        "user_id": user.id,
-        "username": user.username,
-        "course_id": course_id,
-        "rating": rating,
-        "comment": comment,
-        "created_at": "2026-02-21T10:00:00",
-    }
+    """Submit course review (one review per user per course)"""
+    try:
+        return review_create_review(db, user.id, course_id, data.rating, data.comment)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @app.delete("/api/reviews/{review_id}", tags=["Reviews"])
-def delete_review(review_id: int, user: dict = Depends(get_current_user)):
-    """Delete own review"""
-    return {"message": "Review deleted", "review_id": review_id}
+def delete_review(review_id: int, user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Delete own review (only the author can delete)"""
+    try:
+        return review_delete_review(db, user.id, review_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
-# ─────────────── Recommendation Endpoints (P1) ───────────────
+# ─────────────── Recommendation Endpoints (P1) — REAL DB ───────────────
 
-@app.get("/api/courses/{course_id}/recommend", tags=["Recommendations"])
-def recommend_courses(course_id: int):
+@app.get("/api/courses/{course_id}/recommend", tags=["Recommendations"], response_model=RecommendationResponse)
+def recommend_courses(course_id: int, db: Session = Depends(get_db)):
     """What other courses did people who took this course also take"""
-    return {"course_id": course_id, "recommendations": MOCK_RECOMMENDATIONS}
+    try:
+        return get_recommendations(db, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))

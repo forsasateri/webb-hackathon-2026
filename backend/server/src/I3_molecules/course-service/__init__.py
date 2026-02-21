@@ -7,3 +7,4 @@ _spec.loader.exec_module(_mod)
 
 list_courses = _mod.list_courses
 get_course = _mod.get_course
+get_recommendations = _mod.get_recommendations

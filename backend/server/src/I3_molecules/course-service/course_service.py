@@ -14,7 +14,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from server.src.I4_atoms.db.models import Course, Enrollment, Review, TimeSlot
-from server.src.I4_atoms.types.schemas import CourseListResponse, CourseResponse, TimeSlotResponse
+from server.src.I4_atoms.types.schemas import CourseListResponse, CourseResponse, TimeSlotResponse, RecommendedCourse, RecommendationResponse
 
 
 def _build_course_response(course: Course, db: Session) -> CourseResponse:
@@ -91,6 +91,56 @@ def get_course(db: Session, course_id: int) -> CourseResponse:
     return _build_course_response(course, db)
 
 
+def get_recommendations(db: Session, course_id: int, limit: int = 5) -> RecommendationResponse:
+    """'People who enrolled in this course also enrolled in...'
+    Raises LookupError if course not found.
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise LookupError(f"Course {course_id} not found")
+
+    # Find courses co-enrolled by users who enrolled in target course
+    # SQL: SELECT c.*, COUNT(*) as co_count FROM courses c
+    #      JOIN enrollments e1 ON c.id = e1.course_id
+    #      JOIN enrollments e2 ON e1.user_id = e2.user_id
+    #      WHERE e2.course_id = :target AND c.id != :target
+    #      GROUP BY c.id ORDER BY co_count DESC LIMIT 5
+    from sqlalchemy import func as sa_func
+
+    results = (
+        db.query(Course, sa_func.count(Enrollment.id).label("co_count"))
+        .join(Enrollment, Course.id == Enrollment.course_id)
+        .filter(
+            Enrollment.user_id.in_(
+                db.query(Enrollment.user_id).filter(Enrollment.course_id == course_id)
+            ),
+            Course.id != course_id,
+        )
+        .group_by(Course.id)
+        .order_by(sa_func.count(Enrollment.id).desc())
+        .limit(limit)
+        .all()
+    )
+
+    recommendations = [
+        RecommendedCourse(
+            id=c.id,
+            code=c.code,
+            name=c.name,
+            credits=c.credits,
+            instructor=c.instructor,
+            department=c.department,
+            co_enroll_count=co_count,
+        )
+        for c, co_count in results
+    ]
+
+    return RecommendationResponse(
+        course_id=course_id,
+        recommendations=recommendations,
+    )
+
+
 if __name__ == "__main__":
     from server.src.I4_atoms.db.connection import SessionLocal
     db = SessionLocal()
@@ -99,4 +149,9 @@ if __name__ == "__main__":
     if result.courses:
         detail = get_course(db, result.courses[0].id)
         print(f"✅ get_course({detail.id}): {detail.name}, enrolled={detail.enrolled_count}, rating={detail.avg_rating}")
+    # Test recommendations
+    rec = get_recommendations(db, 1)
+    print(f"✅ get_recommendations(course_id=1): {len(rec.recommendations)} recommendations")
+    for r in rec.recommendations:
+        print(f"   - {r.code}: {r.name} (co_enroll_count={r.co_enroll_count})")
     db.close()
