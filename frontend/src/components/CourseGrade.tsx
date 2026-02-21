@@ -1,6 +1,7 @@
 import { Card, Typography, Select } from 'antd';
 import { useState } from 'react';
 import type { Course } from '../types';
+import { RollTheDice } from './rollTheDice';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -43,6 +44,15 @@ export const GradesPage = ({ courses }: GradesPageProps) => {
           </Title>
           <p><strong>Grade:</strong> {selectedCourse.score}</p>
         </Card>
+      )}
+
+      {/* Dice Game Integration */}
+      {selectedCourse && (
+        <RollTheDice
+          key={selectedCourse.id}
+          currentScore={selectedCourse.score}
+          courseCode={selectedCourse.courseCode}
+        />
       )}
     </div>
   );
