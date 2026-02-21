@@ -1,6 +1,7 @@
 import { Layout, Typography, Button, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { BookOutlined, SelectOutlined } from '@ant-design/icons';
+import { PanicButton } from '../components/PanicButton';
 
 const { Content } = Layout;
 const { Title, Paragraph } = Typography;
@@ -48,6 +49,11 @@ export const HomePage = () => {
             Course Selection
           </Button>
         </Space>
+      </div>
+
+
+       <div style={{ maxWidth: '800px', margin: '50px', textAlign: 'center' }}>
+        <PanicButton />
       </div>
     </Content>
   );
