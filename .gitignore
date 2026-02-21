@@ -3,3 +3,7 @@ backend/server/src/__pycache__/__in
 *.pyc
 backend/server/src/__pycache__/__init__/*
 backend/server/src/__pycache__/__init__.cpython-314.pyc
+.DS_Store
+backend/server/src/__pycache__/*
+backend/server/src/__pycache__/__init__.cpython-314.pyc
+**/venv/**

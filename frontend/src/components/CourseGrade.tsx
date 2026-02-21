@@ -1,6 +1,7 @@
 import { Card, Typography, Select } from 'antd';
 import { useState } from 'react';
 import type { Course } from '../types';
+import { RollTheDice } from './rollTheDice';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -14,7 +15,7 @@ export const GradesPage = ({ courses }: GradesPageProps) => {
     (course) => course.enrolled
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const selectedCourse = completedCourses.find(
     (c) => c.id === selectedId
@@ -31,7 +32,7 @@ export const GradesPage = ({ courses }: GradesPageProps) => {
       >
         {completedCourses.map((course) => (
           <Option key={course.id} value={course.id}>
-            {course.courseCode}
+            {course.code}
           </Option>
         ))}
       </Select>
@@ -39,10 +40,19 @@ export const GradesPage = ({ courses }: GradesPageProps) => {
       {selectedCourse && (
         <Card style={{ marginTop: '30px', maxWidth: '500px', marginInline: 'auto' }}>
           <Title level={4}>
-            {selectedCourse.courseCode} - {selectedCourse.name}
+            {selectedCourse.code} - {selectedCourse.name}
           </Title>
           <p><strong>Grade:</strong> {selectedCourse.score}</p>
         </Card>
+      )}
+
+      {/* Dice Game Integration */}
+      {selectedCourse && (
+        <RollTheDice
+          key={selectedCourse.id}
+          currentScore={selectedCourse.score}
+          courseCode={selectedCourse.code}
+        />
       )}
     </div>
   );

@@ -125,6 +125,7 @@ database/
 - Person A：在 `app.py` 中写 **硬编码 Mock 端点**（返回静态 JSON），覆盖全部 11 个端点
   - 目的：前端团队第 1 小时就能拿到完整 API 契约（URL、请求/响应格式）
   - Mock 数据直接写在路由函数里，后续逐个替换成真实逻辑
+  - **定义固定 MOCK_TOKEN**（如：`"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"`），方便前端测试人员直接使用，无需每次登录
 - Person B：编写 `database/schema.sql` + `database/seed.py`
   - 15–20 门课程（涵盖不同学院、不同学分）
   - 每门课 1-3 个 `(period, slot)` 组合（如：课程 A 占 period=1/slot=1 + period=2/slot=3）
@@ -182,8 +183,13 @@ database/
 2. **I3 分子**：`auth_service.py`
    - `register(db, data)` → 检查用户名唯一 → 哈希密码 → 插入 → 返回用户信息
    - `login(db, data)` → 查用户 → 验证密码 → 生成 JWT → 返回 token
+   - **测试便利性**：当用户名为 `testuser` 或 `testuser1` 时，直接返回 MOCK_TOKEN
 3. **I2 替换 Mock**：替换 `POST /api/auth/register`、`POST /api/auth/login`、`GET /api/auth/me`
-4. **I2 中间件**：`auth_middleware.py` — `get_current_user` 依赖（解析 Bearer token → user_id）
+4. **I2 认证依赖**：`get_current_user(authorization: Header)` 函数（作为 `Depends` 使用）
+   - **关键设计**：识别 MOCK_TOKEN 自动返回固定测试用户（`MOCK_USER`）
+   - 支持 `"Bearer <token>"` 或直接 `"<token>"` 格式
+   - 后续所有需要认证的端点从手动验证 Header 改为 `user: dict = Depends(get_current_user)`
+   - **优势**：前端测试人员可使用固定 token，无需每次调用 login 接口
 
 **每完成一个端点立刻在 Swagger UI 测试**，不要等全部写完再测。
 
@@ -406,7 +412,8 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
   ## 快速对接指南
   - Base URL: https://xxx.railway.app
   - 认证：`Authorization: Bearer <token>`（从 /api/auth/login 获取）
-  - 测试账号：testuser1 / password123
+  - **测试账号**：testuser1 / password123（任意密码，登录后自动返回固定 MOCK_TOKEN）
+  - **快速测试 Token**：`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend`（可直接使用，无需登录）
   - 完整文档：https://xxx.railway.app/docs
   
   ## 主要端点及示例
@@ -497,6 +504,7 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
 | **SQLite 而非 PostgreSQL** | 24h hackathon 零配置优先；SQLAlchemy 保证可切换 |
 | **纯函数 service 而非 class** | `db: Session` 作为首参，Junior 更容易理解和测试 |
 | **P0/P1/P2 优先级标记** | 如果进度落后，第 8 小时的 M2 就是最低可演示版本，可以跳过 P1/P2 |
+| **MOCK_TOKEN 自动关联测试账户** | 前端测试人员可使用固定 token (`testuser`/`testuser1` 登录获取)，`get_current_user` 依赖自动识别并返回测试用户；避免每次测试都需重新登录，提升前端对接效率 |
 
 ---
 

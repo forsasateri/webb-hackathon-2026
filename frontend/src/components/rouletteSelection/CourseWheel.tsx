@@ -17,7 +17,7 @@ export const CourseWheel = ({ validCourses, setSelectedCourses }: CourseWheelPro
 
     const data = useMemo(
         () => validCourses.map((course) => ({
-        option: course.courseCode,
+        option: course.code,
         style: { 
             backgroundColor: getColorForCourse(course),
             textColor: 'white',

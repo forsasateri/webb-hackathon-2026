@@ -12,8 +12,9 @@ export const CoursePage = () => {
   useEffect(() => {
     const fetchCourse = async () => {
       if (!id) return;
+      if (isNaN(Number(id))) return; // Invalid ID format
       setLoading(true);
-      const data = await getCourseById(id);
+      const data = await getCourseById(Number(id));
       setCourse(data || null);
       setLoading(false);
     };

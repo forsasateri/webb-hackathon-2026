@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from 'antd';
 import { Navbar } from './components';
+
 import {
   HomePage,
   AllCoursesPage,
   CoursePage,
   CourseSelectionPage,
   GradePage,
-  CourseTierListPage
+  CourseTierListPage,
+  DebugPage
 } from './pages';
 
 const { Content } = Layout;
@@ -54,8 +56,8 @@ function AppContent() {
                   const centerX = rect.width / 2;
                   const centerY = rect.height / 2;
 
-                  const rotateY = (x - centerX) / 150;
-                  const rotateX = -(y - centerY) / 150;
+                  const rotateY = (x - centerX) / 200;
+                  const rotateX = -(y - centerY) / 200;
 
                   setRotate({ x: rotateX, y: rotateY });
                 }
@@ -88,6 +90,7 @@ function AppContent() {
             <Route path="/selection" element={<CourseSelectionPage />} />
             <Route path="/grade" element={<GradePage />} />
             <Route path="/tiers" element={<CourseTierListPage />} />
+            <Route path="/debug" element={<DebugPage />} />
           </Routes>
         </div>
       </div>

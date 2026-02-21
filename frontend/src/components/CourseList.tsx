@@ -8,7 +8,7 @@ const { Title } = Typography;
 interface CourseListProps {
   courses: Course[];
   title?: string;
-  onDrop?: (id: string) => void;
+  onDrop?: (id: number) => void;
 }
 
 export const CourseList = ({ courses, title = 'All Available Courses', onDrop }: CourseListProps) => {
