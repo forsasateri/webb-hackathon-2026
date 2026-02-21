@@ -57,6 +57,8 @@ def list_courses(
     keyword: str | None = None,
     department: str | None = None,
     credits: int | None = None,
+    period: int | None = None,
+    slot: int | None = None,
 ) -> CourseListResponse:
     """Return filtered course list with computed counts and ratings."""
     query = db.query(Course)
@@ -70,6 +72,10 @@ def list_courses(
         query = query.filter(Course.department == department)
     if credits is not None:
         query = query.filter(Course.credits == credits)
+    if period is not None:
+        query = query.filter(Course.time_slots.any(TimeSlot.period == period))
+    if slot is not None:
+        query = query.filter(Course.time_slots.any(TimeSlot.slot == slot))
 
     courses = query.order_by(Course.code).all()
     course_responses = [_build_course_response(c, db) for c in courses]

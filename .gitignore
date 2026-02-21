@@ -7,3 +7,4 @@ backend/server/src/__pycache__/__init__.cpython-314.pyc
 backend/server/src/__pycache__/*
 backend/server/src/__pycache__/__init__.cpython-314.pyc
 **/venv/**
+.vscode/settings.json

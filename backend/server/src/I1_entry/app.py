@@ -14,24 +14,6 @@ from server.src.I4_atoms.helpers.jwt_helper import decode_token
 from server.src.I4_atoms.types.schemas import UserRegister, UserLogin, UserResponse, TokenResponse
 from jose import JWTError
 
-# ─────────────── Helper: Auth Dependency ───────────────
-
-def get_current_user(authorization: Optional[str] = Header(None)):
-    """Verify token and return current user (Mock phase: auto-return test user for MOCK_TOKEN)"""
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authentication token not provided")
-    
-    # Support both "Bearer <token>" and "<token>" formats
-    token = authorization.replace("Bearer ", "").replace("bearer ", "")
-    
-    # If MOCK_TOKEN, return fixed test user
-    if token == MOCK_TOKEN:
-        return MOCK_USER
-    
-    # Future: add real JWT verification logic here
-    # Current Mock phase: accept any token and return test user
-    return MOCK_USER
-
 # course-service directory contains hyphens, re-export via __init__.py using importlib
 import importlib.util, os as _os
 _cs_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "course-service", "__init__.py")
@@ -59,6 +41,18 @@ schedule_enroll = _ss_mod.enroll
 schedule_drop = _ss_mod.drop
 schedule_get = _ss_mod.get_schedule
 
+# ─────────────────────── Mock Data (Define before using) ───────────────────────
+
+MOCK_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"
+
+MOCK_USER = {
+    "id": 1,
+    "username": "testuser1",
+    "email": "testuser1@example.com",
+    "role": "student",
+    "created_at": "2026-02-20T10:00:00",
+}
+
 # ─────────────────────── Auth Dependency ───────────────────────
 
 security = HTTPBearer()
@@ -68,9 +62,19 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    """FastAPI dependency: extract Bearer token → decode JWT → return UserResponse."""
+    """FastAPI dependency: extract Bearer token → decode JWT → return UserResponse.
+    
+    Supports MOCK_TOKEN for testing purposes.
+    """
+    token = credentials.credentials
+    
+    # Support MOCK_TOKEN for frontend testing
+    if token == MOCK_TOKEN:
+        return UserResponse(**MOCK_USER)
+    
+    # Real JWT verification
     try:
-        payload = decode_token(credentials.credentials)
+        payload = decode_token(token)
         user_id = int(payload["sub"])
     except (JWTError, KeyError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -220,16 +224,6 @@ MOCK_COURSES = [
     },
 ]
 
-MOCK_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"
-
-MOCK_USER = {
-    "id": 1,
-    "username": "testuser1",
-    "email": "testuser1@example.com",
-    "role": "student",
-    "created_at": "2026-02-20T10:00:00",
-}
-
 MOCK_SCHEDULE = [
     {
         "enrollment_id": 1,
@@ -342,7 +336,7 @@ def login_endpoint(
 ):
     """User login, returns JWT (Test accounts: testuser/testuser1, any password)"""
     # Mock phase: test accounts directly return MOCK_TOKEN for frontend convenience
-    if username in ["testuser", "testuser1"]:
+    if data.username in ["testuser", "testuser1"]:
         return {
             "access_token": MOCK_TOKEN,
             "token_type": "bearer",
@@ -364,49 +358,30 @@ def get_me(user: dict = Depends(get_current_user)):
 # ─────────────── Enrollment Endpoints (P0) — REAL DB ───────────────
 
 @app.post("/api/schedule/enroll/{course_id}", tags=["Enrollment"])
-def enroll_course(course_id: int, user: dict = Depends(get_current_user)):
+def enroll_course(course_id: int, user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
     """Enroll in course (with conflict detection + capacity check)"""
-    # Mock: TDDE01(id=30) and TDDD38(id=22) both at period=2/slot=1 conflict
-    # Assuming user already enrolled in TDDD38, enrolling in TDDE01 triggers conflict
-    if course_id == 30:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Time slot conflict",
-                "conflicts": [
-                    {
-                        "period": 2,
-                        "slot": 1,
-                        "conflicting_course_id": 22,
-                        "conflicting_course_name": "Advanced Programming in C++",
-                    }
-                ],
-            },
-        )
-    for c in MOCK_COURSES:
-        if c["id"] == course_id:
-            return {
-                "message": "Enrollment successful",
-                "enrollment": {
-                    "enrollment_id": 99,
-                    "course_id": course_id,
-                    "course_name": c["name"],
-                    "enrolled_at": "2026-02-21T10:00:00",
-                },
-            }
-    raise HTTPException(status_code=404, detail="Course not found")
+    try:
+        return schedule_enroll(db, user.id, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        detail = e.args[0] if e.args else str(e)
+        raise HTTPException(status_code=409, detail=detail)
 
 
 @app.delete("/api/schedule/drop/{course_id}", tags=["Enrollment"])
-def drop_course(course_id: int, user: dict = Depends(get_current_user)):
+def drop_course(course_id: int, user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
     """Drop course"""
-    return {"message": "Course dropped successfully", "course_id": course_id}
+    try:
+        return schedule_drop(db, user.id, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/schedule", tags=["Enrollment"])
-def get_schedule(user: dict = Depends(get_current_user)):
+def get_schedule(user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get current user's enrolled courses + schedule"""
-    return {"schedule": MOCK_SCHEDULE, "total_credits": 12}
+    return schedule_get(db, user.id)
 
 # ─────────────── Review Endpoints (P1) ───────────────
 
@@ -430,8 +405,8 @@ def create_review(
     """Submit course review"""
     return {
         "id": 3,
-        "user_id": current_user.id,
-        "username": current_user.username,
+        "user_id": user.id,
+        "username": user.username,
         "course_id": course_id,
         "rating": rating,
         "comment": comment,

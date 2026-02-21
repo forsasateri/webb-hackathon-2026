@@ -4,6 +4,7 @@
 
 **技术栈**：FastAPI + SQLAlchemy + SQLite + Pydantic  
 **认证方案**：JWT（用户名 + 密码，bcrypt hash）  
+**Python 版本**：3.14（实际使用，注意 `passlib` 不兼容，直接用 `bcrypt` 库）  
 **团队规模**：2 名 junior 开发者（Person A、Person B）  
 **职责范围**：Backend API + Database（为前端团队提供完整 RESTful API）  
 **架构**：原子化重构 + 4 层架构（I1 入口层 → I2 协调层 → I3 分子层 → I4 原子层）
@@ -71,20 +72,22 @@ database/
 
 ## API 端点总览（供前端对接）
 
-| 方法 | 路径 | 说明 | 认证 | 优先级 |
-|---|---|---|---|---|
-| `GET` | `/api/courses` | 课程列表（支持 `?keyword=&department=&credits=` 筛选） | 否 | P0 |
-| `GET` | `/api/courses/{id}` | 课程详情（含 period-slot 时间段、平均评分、选课人数） | 否 | P0 |
-| `POST` | `/api/auth/register` | 用户注册 | 否 | P0 |
-| `POST` | `/api/auth/login` | 用户登录，返回 JWT | 否 | P0 |
-| `GET` | `/api/auth/me` | 获取当前用户信息 | 是 | P0 |
-| `POST` | `/api/schedule/enroll/{course_id}` | 选课（含同 period 内 slot 冲突检测 + 容量检查） | 是 | P0 |
-| `DELETE` | `/api/schedule/drop/{course_id}` | 退课 | 是 | P0 |
-| `GET` | `/api/schedule` | 获取当前用户已选课程 + 时间表 | 是 | P0 |
-| `GET` | `/api/courses/{id}/reviews` | 获取课程评价列表 | 否 | P1 |
-| `POST` | `/api/courses/{id}/reviews` | 提交课程评价 | 是 | P1 |
-| `DELETE` | `/api/reviews/{id}` | 删除自己的评价 | 是 | P2 |
-| `GET` | `/api/courses/{id}/recommend` | **杀手锏**：选了这门课的人还选了什么 | 否 | P1 |
+| 方法 | 路径 | 说明 | 认证 | 优先级 | 实际状态 |
+|---|---|---|---|---|---|
+| `GET` | `/api/courses` | 课程列表（支持 `?keyword=&department=&credits=&period=&slot=` 筛选） | 否 | P0 | ✅ 真实 DB |
+| `GET` | `/api/courses/{id}` | 课程详情（含 period-slot 时间段、平均评分、选课人数） | 否 | P0 | ✅ 真实 DB |
+| `POST` | `/api/auth/register` | 用户注册 | 否 | P0 | ✅ 真实 DB |
+| `POST` | `/api/auth/login` | 用户登录，返回 JWT | 否 | P0 | ⚠️ 真实 DB（testuser/testuser1 仍走 MOCK_TOKEN 快捷路径）|
+| `GET` | `/api/auth/me` | 获取当前用户信息 | 是 | P0 | ✅ 真实 DB |
+| `POST` | `/api/schedule/enroll/{course_id}` | 选课（含同 period 内 slot 冲突检测 + 容量检查） | 是 | P0 | ✅ 真实 DB |
+| `DELETE` | `/api/schedule/drop/{course_id}` | 退课 | 是 | P0 | ✅ 真实 DB |
+| `GET` | `/api/schedule` | 获取当前用户已选课程 + 时间表 | 是 | P0 | ✅ 真实 DB |
+| `GET` | `/api/courses/{id}/reviews` | 获取课程评价列表 | 否 | P1 | 🔶 Mock |
+| `POST` | `/api/courses/{id}/reviews` | 提交课程评价 | 是 | P1 | 🔶 Mock |
+| `DELETE` | `/api/reviews/{id}` | 删除自己的评价 | 是 | P2 | 🔶 Mock |
+| `GET` | `/api/courses/{id}/recommend` | **杀手锏**：选了这门课的人还选了什么 | 否 | P1 | 🔶 Mock |
+
+> **当前进度（M2.6 完成后）**：9/13 端点（含健康检查共 13 个路由）使用真实 DB，4 个 Mock（reviews × 3 + recommend × 1）。另有 `GET /` 健康检查端点。
 
 > **P0** = 必须在第 8 小时前完成（核心演示流程）  
 > **P1** = 第 14 小时前完成（完整功能）  
@@ -115,7 +118,7 @@ database/
 - Person A 操作，Person B 盯屏 review：
   ```bash
   cd server && python -m venv venv && source venv/bin/activate
-  pip install fastapi uvicorn[standard] sqlalchemy pydantic python-jose[cryptography] passlib[bcrypt] python-multipart
+  pip install fastapi uvicorn[standard] sqlalchemy pydantic python-jose[cryptography] bcrypt python-multipart
   pip freeze > requirements.txt
   ```
 - 创建所有目录 + `__init__.py`（一行脚本批量创建）
@@ -148,8 +151,10 @@ database/
 ### Person A：数据库连接 + ORM + 课程查询（I4 → I3 → I2 一步到位）
 
 1. **I4 原子**：`connection.py`（~40 行）+ `models.py`（~80 行）+ `schemas.py` 中的 `CourseResponse`/`TimeSlotResponse`（含 period + slot 字段）部分（~40 行）
-2. **I3 分子**：`course_service.py` — `list_courses(db, keyword?, department?, slot?)` + `get_course(db, id)`
+2. **I3 分子**：`course_service.py` — `list_courses(db, keyword?, department?, credits?, period?, slot?)` + `get_course(db, id)`
+   - **实际实现**：6 个筛选参数（keyword 模糊匹配 name/description/code，department 精确匹配，credits 精确匹配，period/slot 通过 `Course.time_slots.any()` 关联过滤）
 3. **I2 替换 Mock**：把 `app.py` 中 `GET /api/courses` 和 `GET /api/courses/{id}` 的 Mock 替换成真实查询
+   - **实际实现**：✅ 已完成。`app.py` 中两个课程端点均调用真实 `course_service` 函数，通过 `importlib` 动态导入（因目录名含连字符）
 
 > **关键**：先在 `app.py` 里直接写路由，不要急着拆分到 `course_router.py`。能跑 > 架构好看。
 
@@ -167,9 +172,11 @@ database/
 
 **交付物（M1）**：
 - ✅ `GET /api/courses` 返回真实课程列表（含 period-slot 时间段、选课人数=COUNT查询）
+  - **实际**：支持 6 个筛选参数 `keyword/department/credits/period/slot`，超出原计划的 3 个
 - ✅ `GET /api/courses/{id}` 返回真实课程详情（含平均评分=AVG查询、完整 period-slot 列表）
 - ✅ 所有 I4 原子文件独立可 import
 - ✅ 其余端点保持 Mock（不会影响前端开发）
+- **实际补充**：种子数据为 77 门照搬 LiU 6MICS 真实课程（原计划 15-20 门），通过 `importlib` 动态导入解决目录连字符问题
 
 ---
 
@@ -185,10 +192,13 @@ database/
    - `login(db, data)` → 查用户 → 验证密码 → 生成 JWT → 返回 token
    - **测试便利性**：当用户名为 `testuser` 或 `testuser1` 时，直接返回 MOCK_TOKEN
 3. **I2 替换 Mock**：替换 `POST /api/auth/register`、`POST /api/auth/login`、`GET /api/auth/me`
-4. **I2 认证依赖**：`get_current_user(authorization: Header)` 函数（作为 `Depends` 使用）
+   - **实际实现**：✅ 已完成。三个端点均调用真实 `auth_service` 函数
+   - ⚠️ `login` 端点仍保留对 `testuser`/`testuser1` 用户名的 MOCK_TOKEN 快捷返回（不走真实密码验证），其他用户走真实 DB 验证
+4. **I2 认证依赖**：`get_current_user(credentials: HTTPAuthorizationCredentials)` 函数（作为 `Depends` 使用）
+   - **实际实现**：✅ 已完成。使用 `HTTPBearer()` 安全方案（FastAPI 内置），自动解析 `Bearer <token>` 格式
    - **关键设计**：识别 MOCK_TOKEN 自动返回固定测试用户（`MOCK_USER`）
-   - 支持 `"Bearer <token>"` 或直接 `"<token>"` 格式
-   - 后续所有需要认证的端点从手动验证 Header 改为 `user: dict = Depends(get_current_user)`
+   - 返回类型为 `UserResponse`（Pydantic model），不是 `dict`
+   - 后续所有需要认证的端点从手动验证 Header 改为 `user: UserResponse = Depends(get_current_user)`
    - **优势**：前端测试人员可使用固定 token，无需每次调用 login 接口
 
 **每完成一个端点立刻在 Swagger UI 测试**，不要等全部写完再测。
@@ -217,6 +227,10 @@ database/
    - `drop(db, user_id, course_id)` → DELETE + 确认
    - `get_schedule(db, user_id)` → JOIN 查询课程信息 + period-slot 列表
 3. **I2 替换 Mock**：替换 `POST /api/schedule/enroll/{course_id}`、`DELETE /api/schedule/drop/{course_id}`、`GET /api/schedule`
+   - **实际实现**：✅ 已完成（M2.6 hotfix 中从 Mock 替换为真实 DB 调用）
+   - `enroll_course()` → 调用 `schedule_enroll(db, user.id, course_id)`，`LookupError` → 404，`ValueError` → 409（含冲突详情）
+   - `drop_course()` → 调用 `schedule_drop(db, user.id, course_id)`，`LookupError` → 404
+   - `get_schedule()` → 调用 `schedule_get(db, user.id)`，返回 `ScheduleResponse`
 
 ### 阶段 3 交叉验证（20 分钟，关键！）
 用真实流程走一遍，在 Swagger UI 中手动操作：
@@ -235,8 +249,13 @@ database/
 **交付物（M2 — 最关键的里程碑）**：
 - ✅ 完整核心闭环：注册→登录→浏览→选课(含同 period 内 slot 冲突检测)→课表→退课
 - ✅ 冲突检测返回具体冲突信息（哪个 period-slot 被哪门课占用）
-- ✅ 8 个 P0 端点真实可用，3 个 P1/P2 端点保持 Mock
+- ✅ 9 个端点真实可用（含健康检查），4 个 Mock（reviews × 3 + recommend × 1）
+- ✅ **40 项集成测试全部通过**（`test_all_endpoints.py`）
 - ✅ **即使后续全部崩溃，这个版本也能参加 Demo**
+- **实际补充**：
+  - 认证方案用 `bcrypt` 直接调用（未用 `passlib`，Python 3.14 不兼容）
+  - `login` 端点对 testuser/testuser1 仍直接返回 MOCK_TOKEN（前端测试便利）
+  - schedule 三个端点在 M2.6 hotfix 中才从 Mock 改为真实 DB（原 M2 阶段只写了 service 层，未替换 app.py 中的 Mock）
 
 ---
 
@@ -466,12 +485,12 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
 ## 验证清单
 
 1. **里程碑验证**（最重要 — 每个时间点必须检查）：
-   - [ ] 第 1 小时：Mock API 全部可访问 + 前端拿到契约
-   - [ ] 第 4 小时：课程查询返回真实数据
-   - [ ] 第 8 小时：核心闭环 9 步测试全通过（见阶段 3 交叉验证）
-   - [ ] 第 14 小时：全部 12 个端点真实可用
-   - [ ] 第 18 小时：架构验证 6 项全通过
-   - [ ] 第 22 小时：公网可访问 + Demo 路径零 bug
+   - [x] M0：Mock API 全部可访问 + 前端拿到契约 ✅
+   - [x] M1：课程查询返回真实数据（77 门 LiU 课程） ✅
+   - [x] M2：核心闭环测试全通过（9 个 Real DB 端点 + 40 项集成测试） ✅
+   - [ ] M3：全部 12 个端点真实可用（待完成：reviews × 3 + recommend × 1）
+   - [ ] M4：架构验证 6 项全通过
+   - [ ] M5：公网可访问 + Demo 路径零 bug
 
 2. **架构验证**（阶段 5 完成后）：
    ```bash
@@ -504,7 +523,29 @@ python -m pytest server/tests/ -v  # 或手动 Swagger 测试
 | **SQLite 而非 PostgreSQL** | 24h hackathon 零配置优先；SQLAlchemy 保证可切换 |
 | **纯函数 service 而非 class** | `db: Session` 作为首参，Junior 更容易理解和测试 |
 | **P0/P1/P2 优先级标记** | 如果进度落后，第 8 小时的 M2 就是最低可演示版本，可以跳过 P1/P2 |
+| **`passlib` → `bcrypt` 直接调用** | Python 3.14 下 `passlib` 不兼容（`crypt` 模块已移除），直接用 `bcrypt.hashpw()`/`bcrypt.checkpw()` 替代 |
+| **`importlib` 动态导入** | 目录名含连字符（`course-service` 等）无法直接 `import`，在 `app.py` 顶部用 `importlib.util` 动态加载三个 service 包 |
+| **`get_current_user` 用 `HTTPBearer`** | 原计划用 `Header` 手动解析，实际用 FastAPI 内置 `HTTPBearer()` + `HTTPAuthorizationCredentials`，Swagger UI 自动生成 Authorize 按钮 |
+| **返回 `UserResponse` 而非 `dict`** | `get_current_user` 依赖返回 Pydantic model → 类型安全，下游端点可用 `user.id`、`user.username` 等属性访问 |
 | **MOCK_TOKEN 自动关联测试账户** | 前端测试人员可使用固定 token (`testuser`/`testuser1` 登录获取)，`get_current_user` 依赖自动识别并返回测试用户；避免每次测试都需重新登录，提升前端对接效率 |
+
+---
+
+## 实际实现差异总结（截至 M2.6）
+
+> 本节记录计划与实际实现之间的关键差异，供后续开发参考。
+
+| 计划内容 | 实际实现 | 原因/说明 |
+|---|---|---|
+| `pip install passlib[bcrypt]` | `pip install bcrypt` | Python 3.14 移除了 `crypt` 模块，`passlib` 不兼容。直接用 `bcrypt.hashpw()`/`bcrypt.checkpw()` |
+| `list_courses(db, keyword?, department?, slot?)` 3 参数 | `list_courses(db, keyword?, department?, credits?, period?, slot?)` 6 参数 | 增加了 `credits`/`period`/`slot` 筛选，`period`/`slot` 通过 `Course.time_slots.any()` 关联过滤 |
+| `get_current_user(authorization: Header)` 手动解析 | `get_current_user(credentials: HTTPAuthorizationCredentials)` + `HTTPBearer()` | 使用 FastAPI 内置安全方案，Swagger UI 自动生成 Authorize 按钮 |
+| `get_current_user` 返回 `dict` | 返回 `UserResponse`（Pydantic model） | 类型安全，下游端点可用 `user.id` 属性访问 |
+| 种子数据 15-20 门课程 | 77 门真实 LiU 6MICS 课程 | 从真实 LiU 课程数据脚本爬取，更贴近生产环境 |
+| M2 阶段 schedule 端点已替换为真实 DB | M2 完成时 schedule 三个端点仍为 Mock | service 层已写好但 app.py 未替换 Mock 函数体，在 M2.6 hotfix 中修复 |
+| 12 个业务端点 | 13 个路由（含 `GET /` 健康检查） | 额外增加了健康检查端点 |
+| 无集成测试 | `test_all_endpoints.py`（40 项测试） | M2.6 hotfix 中新增，覆盖全部 13 个路由的正常和异常路径 |
+| `app.py` 中 MOCK 数据已清除 | MOCK_COURSES/MOCK_SCHEDULE/MOCK_REVIEWS/MOCK_RECOMMENDATIONS 常量仍保留 | reviews/recommend 端点仍为 Mock，待 M3 替换后可清除。schedule 端点已不再使用这些 Mock 数据 |
 
 ---
 

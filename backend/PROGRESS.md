@@ -11,6 +11,8 @@
 | **M0: Mock API + 地基** | ✅ 完成 | 全部 12 Mock 端点 + DB 种子数据 |
 | **M1: 课程浏览（真实查询）** | ✅ 完成 | GET /api/courses 和 GET /api/courses/{id} 已替换为真实 DB 查询；I4 原子层（Person B）全部完成 |
 | **M2: 认证 + 选课（含冲突检测）** | ✅ 完成 | Person A（认证）+ Person B（选课）均已完成；9 步交叉验证全部通过 |
+| **M2.5: Hotfix** | ✅ 完成 | get_current_user 双重定义修复 + 前端 MOCK_TOKEN 修复 |
+| **M2.6: Hotfix + 集成测试** | ✅ 完成 | 选课端点 Mock 残留修复 + list_courses period/slot 参数修复；新增 40 项集成测试全部通过 |
 | M3: 评价 + 推荐 | ⬜ 未开始 | |
 | M4: 4 层架构重构 | ⬜ 未开始 | |
 | M5: 测试 + 部署 | ⬜ 未开始 | |
@@ -401,6 +403,167 @@ cd backend && bash database/reset.sh
 
 ---
 
+## 已完成工作（M2.5 — Hotfix: get_current_user + 前端 Token 修复）
+
+> 修复 M2 遗留的 `get_current_user` 双重定义问题 + 前端 MOCK_TOKEN 不完整问题
+
+### 问题描述
+
+使用 MOCK_TOKEN 访问受保护端点（如 `GET /api/auth/me`、`GET /api/schedule`）时，后端返回 **401 "Invalid or expired token"**。
+
+### 根因分析
+
+**app.py 中存在两个 `get_current_user` 函数定义**，Python 后定义覆盖前定义：
+
+| 版本 | 位置 | 行为 | 实际生效？ |
+|---|---|---|---|
+| **旧 Mock 版本**（第19-33行）| `def get_current_user(authorization: Optional[str] = Header(None))` | 从 `Authorization` Header 手动解析 token，匹配 MOCK_TOKEN 时直接返回 MOCK_USER | ❌ 被覆盖 |
+| **新 JWT 版本**（第67-80行）| `def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security))` | 使用 `HTTPBearer()` 解析 Bearer token → `decode_token()` 真实 JWT 解码 | ✅ 生效 |
+
+新版本没有 MOCK_TOKEN 豁免逻辑，直接尝试 JWT 解码 → MOCK_TOKEN 不是合法 JWT → 抛出 401。
+
+**同时发现前端 Token 也不完整**：
+
+```typescript
+// frontend/src/api/auth.ts（修复前）
+export const DEV_AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" //.mock_token_for_frontend"
+```
+
+后半段 `.mock_token_for_frontend"` 被注释掉，前端实际发送的 token 与后端 `MOCK_TOKEN` 不匹配。
+
+### 修复内容
+
+#### 1. 删除旧 Mock 版 `get_current_user`（第19-33行）
+- 移除旧版函数，消除双重定义
+
+#### 2. 合并 MOCK_TOKEN 支持到新版 `get_current_user`
+- 将 `MOCK_TOKEN` 和 `MOCK_USER` 定义提前到函数之前（解决使用前未定义的问题）
+- 在真实 JWT 解码之前增加 MOCK_TOKEN 检查：
+  ```python
+  token = credentials.credentials
+  if token == MOCK_TOKEN:
+      return UserResponse(**MOCK_USER)  # 直接返回，跳过 JWT 解码
+  # ... 真实 JWT 验证 ...
+  ```
+
+#### 3. 修复前端 Token
+- `frontend/src/api/auth.ts`：取消后半段注释，恢复完整 token
+  ```typescript
+  export const DEV_AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"
+  ```
+
+#### 4. 修复 app.py 中其他 Bug
+- `login_endpoint` 中 `if username in [...]` → `if data.username in [...]`（未定义变量 `username`）
+- `create_review` 中 `current_user.id` → `user.id`（参数名是 `user` 不是 `current_user`）
+
+### 修复后 `get_current_user` 认证流程
+
+```
+请求 Authorization: Bearer <token>
+       │
+       ▼
+HTTPBearer() 提取 token
+       │
+       ▼
+token == MOCK_TOKEN? ─── Yes ──→ 返回 UserResponse(**MOCK_USER)
+       │
+       No
+       ▼
+decode_token(token) 真实 JWT 解码
+       │
+       ▼
+auth_get_user_by_id(db, user_id) 查数据库
+       │
+       ▼
+返回 UserResponse
+```
+
+### 修复后 app.py 结构变更
+
+- `MOCK_TOKEN` 和 `MOCK_USER` 从原来的第 222-232 行**上移**到第 44-55 行（`get_current_user` 函数之前）
+- `get_current_user` 现在是**唯一一个定义**（第 61-84 行），同时支持 MOCK_TOKEN 和真实 JWT
+- 其余 MOCK 数据（MOCK_COURSES, MOCK_SCHEDULE, MOCK_REVIEWS, MOCK_RECOMMENDATIONS）位置不变
+
+### 验证结果
+- ✅ `test_mock_token.py` 通过（Exit Code: 0）
+- ✅ 前端可通过 `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend` 正常访问所有受保护端点
+- ✅ 真实 JWT 认证流程不受影响
+
+---
+
+## 已完成工作（M2.6 — Hotfix: 选课端点 Mock 残留 + 课程筛选参数缺失）
+
+> 综合集成测试发现 2 个遗留 Bug，修复后全部端点通过 40 项自动化测试
+
+### 问题描述
+
+编写覆盖全部 13 个端点的集成测试（`test_all_endpoints.py`，40 个用例）后发现 **13 项测试失败**，归因于 2 个 Bug：
+
+### Bug 1：`list_courses()` 缺少 `period`/`slot` 筛选参数
+
+**现象**：所有 `GET /api/courses` 请求均返回 500（`TypeError: list_courses() got an unexpected keyword argument 'period'`）
+
+**根因**：`app.py` 的 `list_courses_endpoint` 接受 `period` 和 `slot` query 参数并传递给 `list_courses()`，但 `course_service.py` 的 `list_courses()` 函数签名只有 `keyword`、`department`、`credits` 三个参数，不接受 `period` 和 `slot`。
+
+**影响范围**：全部 6 个课程列表/详情相关测试失败（因为 `GET /api/courses` 完全不可用）
+
+**修复**：
+- `I3_molecules/course-service/course_service.py` 的 `list_courses()` 新增 `period: int | None = None` 和 `slot: int | None = None` 参数
+- 使用 `Course.time_slots.any(TimeSlot.period == period)` 和 `Course.time_slots.any(TimeSlot.slot == slot)` 进行关联过滤
+
+### Bug 2：选课三端点仍使用 Mock 逻辑（未接真实 DB）
+
+**现象**：
+- `POST /api/schedule/enroll/{id}` 永远成功（无冲突检测、无重复检查）
+- `DELETE /api/schedule/drop/{id}` 永远成功（不检查是否已选）
+- `GET /api/schedule` 永远返回固定 `MOCK_SCHEDULE`（2 门课、12 学分）
+
+**根因**：`app.py` 中三个选课端点虽然已导入真实服务函数（`schedule_enroll`、`schedule_drop`、`schedule_get`），但 **函数体仍为硬编码 Mock 数据**，未调用真实服务。
+
+- `enroll_course()` 返回 `MOCK_COURSES` 中的固定结果，仅 `course_id == 30` 触发假冲突
+- `drop_course()` 直接返回 `{"message": "Course dropped successfully"}`，不查数据库
+- `get_schedule()` 直接返回 `{"schedule": MOCK_SCHEDULE, "total_credits": 12}`
+
+**影响范围**：全部 7 个选课相关测试失败
+
+**修复**：
+- `enroll_course()` → 调用 `schedule_enroll(db, user.id, course_id)`，`LookupError` → 404，`ValueError` → 409（含冲突 detail dict）
+- `drop_course()` → 调用 `schedule_drop(db, user.id, course_id)`，`LookupError` → 404
+- `get_schedule()` → 调用 `schedule_get(db, user.id)`
+- 三个端点均新增 `db: Session = Depends(get_db)` 依赖注入
+- 类型注解从 `user: dict` 更正为 `user: UserResponse`
+
+### 新增测试文件
+
+- **`test_all_endpoints.py`**（350+ 行）✅ — 覆盖全部 13 个端点的 pytest 集成测试
+  - **TestHealthCheck**（1 项）：健康检查
+  - **TestCourses**（7 项）：课程列表、keyword/department/credits 筛选、空结果、课程详情、404
+  - **TestAuth**（12 项）：注册成功/重复用户名/重复邮箱/短用户名/短密码、登录成功/错误密码/不存在用户/种子用户、me 接口（有效 token/MOCK_TOKEN/无 token/无效 token）
+  - **TestSchedule**（11 项）：空课表、选课成功、选课后查课表、重复选课 409、slot 冲突 409（含 conflict detail 验证）、不存在课程 404、退课成功、退未选课 404、选课→冲突→退课→再选完整流程、无认证 401/403
+  - **TestReviews**（4 项）：获取评价、创建评价、删除评价、无认证拒绝
+  - **TestRecommendations**（1 项）：获取推荐
+  - **TestCrossCutting**（4 项）：不存在端点 404、MOCK_TOKEN 受保护端点、种子用户登录+认证闭环
+  - 每个测试用例自动创建/清理测试用户，不污染数据库
+  - ✅ **40/40 全部通过**
+
+### 修复后端点状态
+
+| 方法 | 路径 | 修复前状态 | 修复后状态 |
+|---|---|---|---|
+| `GET` | `/api/courses` | ❌ 500 TypeError（缺 period/slot 参数） | ✅ **真实 DB**（含 period/slot 筛选） |
+| `GET` | `/api/courses/{id}` | ❌ 500（同上，list_courses 被间接影响） | ✅ **真实 DB** |
+| `POST` | `/api/schedule/enroll/{id}` | ❌ Mock（无真实检查） | ✅ **真实 DB**（4 层检查 + slot 冲突检测） |
+| `DELETE` | `/api/schedule/drop/{id}` | ❌ Mock（永远成功） | ✅ **真实 DB**（未选则 404） |
+| `GET` | `/api/schedule` | ❌ Mock（固定 2 门课） | ✅ **真实 DB**（按用户查询） |
+
+### 验证结果
+- ✅ `python -m pytest test_all_endpoints.py -v` — **40 passed**
+- ✅ `python test_auth_e2e.py` — 全部通过（无回归）
+- ✅ `python test_schedule_e2e.py` — 全部 9 步 + 3 bonus 通过（无回归）
+- ✅ `python test_mock_token.py` — 全部通过（无回归）
+
+---
+
 ## 下一步工作（M3: 评价 + 推荐）
 
 > 对应 `Backend_plan_CH.md` 阶段 4 — 最后 4 个 Mock 端点替换为真实逻辑
@@ -481,6 +644,12 @@ cd backend && bash database/reset.sh
 13. **JWT payload 格式**：`{"sub": "用户ID", "username": "用户名", "exp": 过期时间戳}`，`sub` 是字符串类型（`str(user_id)`），使用时需 `int(payload["sub"])` 转回整数
 14. **schedule_validator 使用方式**：`check_slot_conflict(existing, new)` 入参均为 `list[tuple[int,int]]`（period, slot），返回冲突列表
 15. **冲突错误传递模式**：`schedule_service.enroll()` 检测到冲突时 raise `ValueError(dict)`，`app.py` 通过 `isinstance(e.args[0], dict)` 区分冲突（409 + detail dict）和普通业务错误（409 + 文本）
-16. **认证依赖注入**：受保护端点使用 `current_user: UserResponse = Depends(get_current_user)` 获取当前用户，`get_current_user` 内部解析 Bearer token → decode JWT → 查用户
-17. **已有 3 个测试文件**：`test_auth_smoke.py`（57 行）、`test_auth_e2e.py`（102 行）、`test_schedule_e2e.py`（123 行），全部通过
+16. **认证依赖注入**：受保护端点使用 `user: UserResponse = Depends(get_current_user)` 获取当前用户，`get_current_user` 先检查 MOCK_TOKEN（匹配则直接返回 MOCK_USER），否则解析 Bearer token → decode JWT → 查用户。**注意**：`MOCK_TOKEN` 和 `MOCK_USER` 定义在 `get_current_user` 函数之前（第 44-55 行），确保函数可以引用
+17. **已有 4 个测试文件**：`test_auth_smoke.py`（57 行）、`test_auth_e2e.py`（102 行）、`test_schedule_e2e.py`（123 行）、`test_all_endpoints.py`（350+ 行，40 项 pytest），全部通过
 18. **review_validator.py 已就绪**：`validate_rating(rating)` 和 `validate_comment(comment)` 可直接 import 使用，M3 的 `review_service.py` 应调用这两个验证函数
+19. **MOCK_TOKEN 兼容机制**：`get_current_user` 在 JWT 解码前先检查 `token == MOCK_TOKEN`，匹配则直接返回 `UserResponse(**MOCK_USER)` 跳过数据库。前端 `DEV_AUTH_TOKEN` 必须与后端 `MOCK_TOKEN` 完全一致（含 `.mock_token_for_frontend` 后缀）。此机制供前端开发联调使用，**生产环境应移除**
+20. **前端 token 发送方式**：`Authorization: Bearer ${getAuthToken()}`，`HTTPBearer()` 自动提取 Bearer 后的 token 字符串赋值给 `credentials.credentials`
+21. **app.py 已修复的历史 Bug**：(a) `login_endpoint` 中 `username` → `data.username`；(b) `create_review` 中 `current_user.id` → `user.id`；(c) 双重 `get_current_user` 定义合并为单一版本；(d) 选课三端点从 Mock 替换为真实 DB 调用；(e) `list_courses()` 新增 `period`/`slot` 筛选参数
+22. **course_service.list_courses() 完整签名**：`list_courses(db, keyword?, department?, credits?, period?, slot?)` — 6 个参数均可选，支持 `TimeSlot` 关联过滤
+23. **选课端点错误处理模式**：`enroll_course()` 捕获 `LookupError` → 404、`ValueError` → 409；`ValueError.args[0]` 为 dict（冲突详情）或 str（普通业务错误）
+24. **测试命令**：`cd backend && source venv/bin/activate && python -m pytest test_all_endpoints.py -v`（需先 `pip install pytest`）
