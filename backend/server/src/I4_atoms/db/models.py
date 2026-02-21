@@ -81,6 +81,7 @@ class Enrollment(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
     finished_status: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    score: Mapped[int | None] = mapped_column(Integer, CheckConstraint("score IS NULL OR (score >= 0 AND score <= 100)"), nullable=True, default=None)
     enrolled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="enrollments")

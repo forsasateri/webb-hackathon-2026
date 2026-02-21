@@ -52,7 +52,7 @@ database/
 | `courses` | id, code, name, description, credits, instructor, department, capacity | 课程表 |
 | `time_slots` | id, course_id(FK), period(INT), slot(ENUM 1-4) | 时间段表（一门课可占多个 period-slot 组合） |
 | `reviews` | id, user_id(FK), course_id(FK), rating(1-5), comment, created_at | 评价表 |
-| `enrollments` | id, user_id(FK), course_id(FK), finished_status(Bool, True represents completed), enrolled_at | 选课记录表 |
+| `enrollments` | id, user_id(FK), course_id(FK), finished_status(Bool, True represents completed), enrolled_at | 选课记录表 | score (0-100, optional, only for completed courses) |
 
 约束：`enrollments` 表 `(user_id, course_id)` 唯一索引；`reviews` 表 `(user_id, course_id)` 唯一索引，防止重复评价；`time_slots` 表 `(course_id, period, slot)` 唯一索引。
 
@@ -148,7 +148,7 @@ database/
 ### Person A：数据库连接 + ORM + 课程查询（I4 → I3 → I2 一步到位）
 
 1. **I4 原子**：`connection.py`（~40 行）+ `models.py`（~80 行）+ `schemas.py` 中的 `CourseResponse`/`TimeSlotResponse`（含 period + slot 字段）部分（~40 行）
-2. **I3 分子**：`course_service.py` — `list_courses(db, keyword?, department?)` + `get_course(db, id)`
+2. **I3 分子**：`course_service.py` — `list_courses(db, keyword?, department?, slot?)` + `get_course(db, id)`
 3. **I2 替换 Mock**：把 `app.py` 中 `GET /api/courses` 和 `GET /api/courses/{id}` 的 Mock 替换成真实查询
 
 > **关键**：先在 `app.py` 里直接写路由，不要急着拆分到 `course_router.py`。能跑 > 架构好看。

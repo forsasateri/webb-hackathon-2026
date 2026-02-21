@@ -1,14 +1,18 @@
 """
-FastAPI Application Entry Point - Phase 2: Real Course Queries
-Course endpoints now use real DB. Auth/Schedule/Review endpoints remain Mock.
+FastAPI Application Entry Point - Phase 3: Real Auth + Course + Schedule
+Course, Auth, and Schedule endpoints use real DB. Review/Recommend endpoints remain Mock.
 """
 
 from fastapi import FastAPI, Header, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from sqlalchemy.orm import Session
 
 from server.src.I4_atoms.db.connection import get_db
+from server.src.I4_atoms.helpers.jwt_helper import decode_token
+from server.src.I4_atoms.types.schemas import UserRegister, UserLogin, UserResponse, TokenResponse
+from jose import JWTError
 
 # ─────────────── Helper: Auth Dependency ───────────────
 
@@ -37,10 +41,49 @@ _cs_spec.loader.exec_module(_cs_mod)
 list_courses = _cs_mod.list_courses
 get_course = _cs_mod.get_course
 
+# auth-service: directory contains hyphen, use importlib dynamic import
+_as_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "auth-service", "__init__.py")
+_as_spec = importlib.util.spec_from_file_location("auth_service_pkg", _os.path.normpath(_as_init))
+_as_mod = importlib.util.module_from_spec(_as_spec)
+_as_spec.loader.exec_module(_as_mod)
+auth_register = _as_mod.register
+auth_login = _as_mod.login
+auth_get_user_by_id = _as_mod.get_user_by_id
+
+# schedule-service: directory contains hyphen, use importlib dynamic import
+_ss_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "schedule-service", "__init__.py")
+_ss_spec = importlib.util.spec_from_file_location("schedule_service_pkg", _os.path.normpath(_ss_init))
+_ss_mod = importlib.util.module_from_spec(_ss_spec)
+_ss_spec.loader.exec_module(_ss_mod)
+schedule_enroll = _ss_mod.enroll
+schedule_drop = _ss_mod.drop
+schedule_get = _ss_mod.get_schedule
+
+# ─────────────────────── Auth Dependency ───────────────────────
+
+security = HTTPBearer()
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """FastAPI dependency: extract Bearer token → decode JWT → return UserResponse."""
+    try:
+        payload = decode_token(credentials.credentials)
+        user_id = int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    try:
+        return auth_get_user_by_id(db, user_id)
+    except LookupError:
+        raise HTTPException(status_code=401, detail="User not found")
+
+
 app = FastAPI(
     title="Course Selection System API",
     description="Hackathon 2026 - Course Selection System Backend API (LiU 6MICS Master's Programme)",
-    version="0.2.0",
+    version="0.4.0",
 )
 
 # CORS configuration
@@ -193,12 +236,14 @@ MOCK_SCHEDULE = [
         "course": MOCK_COURSES[0],  # TAMS11
         "enrolled_at": "2026-02-20T12:00:00",
         "finished_status": False,
+        "score": None,
     },
     {
         "enrollment_id": 2,
         "course": MOCK_COURSES[2],  # TDDD38
         "enrolled_at": "2026-02-20T12:05:00",
         "finished_status": False,
+        "score": None,
     },
 ]
 
@@ -260,10 +305,12 @@ def list_courses_endpoint(
     keyword: Optional[str] = None,
     department: Optional[str] = None,
     credits: Optional[int] = None,
+    period: Optional[int] = None,
+    slot: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
-    """Get course list from database (with keyword/department/credits filtering)"""
-    return list_courses(db, keyword=keyword, department=department, credits=credits)
+    """Get course list from database (with keyword/department/credits/period/slot filtering)"""
+    return list_courses(db, keyword=keyword, department=department, credits=credits, period=period, slot=slot)
 
 
 @app.get("/api/courses/{course_id}", tags=["Courses"])
@@ -274,28 +321,24 @@ def get_course_endpoint(course_id: int, db: Session = Depends(get_db)):
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# ─────────────── Authentication Endpoints (P0) ───────────────
+# ─────────────── Authentication Endpoints (P0) — REAL DB ───────────────
 
-@app.post("/api/auth/register", status_code=201, tags=["Authentication"])
-def register(
-    username: str = Body(...),
-    email: str = Body(...),
-    password: str = Body(...),
+@app.post("/api/auth/register", status_code=201, tags=["Authentication"], response_model=UserResponse)
+def register_endpoint(
+    data: UserRegister,
+    db: Session = Depends(get_db),
 ):
     """User registration"""
-    return {
-        "id": 3,
-        "username": username,
-        "email": email,
-        "role": "student",
-        "created_at": "2026-02-21T10:00:00",
-    }
+    try:
+        return auth_register(db, data.username, data.email, data.password)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
-@app.post("/api/auth/login", tags=["Authentication"])
-def login(
-    username: str = Body(...),
-    password: str = Body(...),
+@app.post("/api/auth/login", tags=["Authentication"], response_model=TokenResponse)
+def login_endpoint(
+    data: UserLogin,
+    db: Session = Depends(get_db),
 ):
     """User login, returns JWT (Test accounts: testuser/testuser1, any password)"""
     # Mock phase: test accounts directly return MOCK_TOKEN for frontend convenience
@@ -307,11 +350,10 @@ def login(
         }
     
     # Any other username also returns success (Mock phase)
-    return {
-        "access_token": MOCK_TOKEN,
-        "token_type": "bearer",
-        "user": MOCK_USER,
-    }
+    try:
+        return auth_login(db, data.username, data.password)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
 @app.get("/api/auth/me", tags=["Authentication"])
@@ -319,7 +361,7 @@ def get_me(user: dict = Depends(get_current_user)):
     """Get current user information"""
     return user
 
-# ─────────────── Enrollment Endpoints (P0) ───────────────
+# ─────────────── Enrollment Endpoints (P0) — REAL DB ───────────────
 
 @app.post("/api/schedule/enroll/{course_id}", tags=["Enrollment"])
 def enroll_course(course_id: int, user: dict = Depends(get_current_user)):
@@ -388,8 +430,8 @@ def create_review(
     """Submit course review"""
     return {
         "id": 3,
-        "user_id": 1,
-        "username": "testuser1",
+        "user_id": current_user.id,
+        "username": current_user.username,
         "course_id": course_id,
         "rating": rating,
         "comment": comment,

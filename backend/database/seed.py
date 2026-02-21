@@ -194,14 +194,20 @@ def seed():
 
     enrollments = []
     for cid in user1_courses:
-        enrollments.append((1, cid, random.choice([True, False])))
+        finished = random.choice([True, False])
+        score = random.randint(30, 100) if finished else None
+        enrollments.append((1, cid, finished, score))
     for cid in user2_courses:
-        enrollments.append((2, cid, random.choice([True, False])))
+        finished = random.choice([True, False])
+        score = random.randint(30, 100) if finished else None
+        enrollments.append((2, cid, finished, score))
     for cid in user3_courses:
-        enrollments.append((3, cid, random.choice([True, False])))
+        finished = random.choice([True, False])
+        score = random.randint(30, 100) if finished else None
+        enrollments.append((3, cid, finished, score))
 
     cur.executemany(
-        "INSERT OR IGNORE INTO enrollments (user_id, course_id, finished_status) VALUES (?, ?, ?)",
+        "INSERT OR IGNORE INTO enrollments (user_id, course_id, finished_status, score) VALUES (?, ?, ?, ?)",
         enrollments,
     )
     actual_enrollments = cur.execute("SELECT COUNT(*) FROM enrollments").fetchone()[0]

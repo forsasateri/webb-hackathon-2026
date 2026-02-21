@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
     user_id INTEGER NOT NULL,
     course_id INTEGER NOT NULL,
     finished_status BOOLEAN NOT NULL DEFAULT 0,
+    score INTEGER CHECK (score IS NULL OR (score >= 0 AND score <= 100)),
     enrolled_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
