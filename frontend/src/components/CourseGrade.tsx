@@ -1,0 +1,49 @@
+import { Card, Typography, Select } from 'antd';
+import { useState } from 'react';
+import type { Course } from '../types';
+
+const { Title } = Typography;
+const { Option } = Select;
+
+interface GradesPageProps {
+  courses: Course[];
+}
+
+export const GradesPage = ({ courses }: GradesPageProps) => {
+  const completedCourses = courses.filter(
+    (course) => course.enrolled
+  );
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const selectedCourse = completedCourses.find(
+    (c) => c.id === selectedId
+  );
+
+  return (
+    <div style={{ textAlign: 'center', marginTop: '40px' }}>
+      <Title level={2}>My Grades</Title>
+
+      <Select
+        style={{ width: 300 }}
+        placeholder="Select a completed course"
+        onChange={(value) => setSelectedId(value)}
+      >
+        {completedCourses.map((course) => (
+          <Option key={course.id} value={course.id}>
+            {course.courseCode}
+          </Option>
+        ))}
+      </Select>
+
+      {selectedCourse && (
+        <Card style={{ marginTop: '30px', maxWidth: '500px', marginInline: 'auto' }}>
+          <Title level={4}>
+            {selectedCourse.courseCode} - {selectedCourse.name}
+          </Title>
+          <p><strong>Grade:</strong> {selectedCourse.score}</p>
+        </Card>
+      )}
+    </div>
+  );
+};

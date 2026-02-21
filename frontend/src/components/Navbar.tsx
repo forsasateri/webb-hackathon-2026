@@ -23,6 +23,11 @@ export const Navbar = () => {
       icon: <SelectOutlined />,
       label: <Link to="/selection">Course Selection</Link>,
     },
+    {
+      key: '/grade',
+      icon: <SelectOutlined />,
+      label: <Link to="/grade">Grade</Link>,
+    },
   ];
 
   return (

@@ -112,7 +112,7 @@ const mockCourses: Course[] = [
     name: 'Art History',
     description: 'Exploration of art movements, styles, and major works from ancient to contemporary periods.',
     time_slot: 2,
-    enrolled: false,
+    enrolled: true,
     score: "39"
   },
   {
@@ -121,7 +121,8 @@ const mockCourses: Course[] = [
     name: 'Music Theory',
     description: 'Study of musical notation, harmony, melody, rhythm, and compositional techniques.',
     time_slot: 3,
-    enrolled: false
+    enrolled: true,
+    score: "93"
   },
 ];
 
