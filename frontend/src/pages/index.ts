@@ -3,3 +3,5 @@ export * from './AllCoursesPage';
 export * from './CoursePage';
 export * from './CourseSelectionPage';
 export * from './GradePage';
+export * from './CourseEvaluationFormPage';
+export * from './CourseEvaluationResultsPage';
