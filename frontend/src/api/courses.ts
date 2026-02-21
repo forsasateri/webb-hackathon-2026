@@ -104,7 +104,7 @@ const mockCourses: Course[] = [
     name: 'Introduction to Psychology',
     description: 'Overview of human behavior, cognition, emotion, and mental processes.',
     time_slot: 1,
-    enrolled: false
+    enrolled: true
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440014',

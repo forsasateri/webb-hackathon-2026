@@ -18,7 +18,22 @@ export const AllCoursesPage = () => {
     fetchCourses();
   }, []);
 
+  const handleDrop = (id: string) => {
+    setCourses(prev =>
+      prev.map(course =>
+        course.id === id
+          ? { ...course, enrolled: false, score: undefined  }
+          : course
+      )
+    );
+  };
+
   if (loading) return <LoadingSpinner />;
 
-  return <CourseList courses={courses} />;
+  return (
+    <CourseList 
+      courses={courses}
+      onDrop={handleDrop}
+    />
+  );
 };

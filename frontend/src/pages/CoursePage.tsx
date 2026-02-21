@@ -21,8 +21,25 @@ export const CoursePage = () => {
     fetchCourse();
   }, [id]);
 
+  const handleToggleEnroll = () => {
+    setCourse(prev =>
+      prev
+        ? {
+            ...prev,
+            enrolled: !prev.enrolled,
+            score: prev.enrolled ? undefined : prev.score
+          }
+        : prev
+    );
+  };
+
   if (loading) return <LoadingSpinner />;
   if (!course) return <NotFound />;
 
-  return <CourseDetail course={course} />;
+  return (
+    <CourseDetail
+      course={course}
+      onToggleEnroll={handleToggleEnroll}
+    />
+  );
 };
