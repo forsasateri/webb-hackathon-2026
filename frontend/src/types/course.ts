@@ -32,8 +32,42 @@ export interface Course {
 
 export interface TimeSlot {
   id: number; // Unique for each period + slot combination. Should be enough to compare ids to check for conflicting courses
-  period: number; // 1, 2, 3, or 4
-  slot: number; // 1, 2, 3, or 4
+  period: number; // 1-6 (backend actual range)
+  slot: number; // 1-4
+}
+
+export interface UserResponse {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: UserResponse;
+}
+
+export interface ScheduleEntry {
+  enrollment_id: number;
+  course: Course;
+  enrolled_at: string;
+  finished_status: boolean;
+  score: number | null;
+}
+
+export interface ScheduleResponse {
+  schedule: ScheduleEntry[];
+  total_credits: number;
+}
+
+export interface ConflictDetail {
+  period: number;
+  slot: number;
+  conflicting_course_id: number;
+  conflicting_course_name: string;
 }
 
 

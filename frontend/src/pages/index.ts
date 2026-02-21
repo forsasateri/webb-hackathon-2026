@@ -5,3 +5,5 @@ export * from './CourseSelectionPage';
 export * from './GradePage';
 export * from './CourseTierListPage';
 export * from './DebugPage';
+export * from './LoginPage';
+export * from './SchedulePage';

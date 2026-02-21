@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Layout } from 'antd';
 import { Navbar } from './components';
+import { AuthProvider } from './context/AuthContext';
 
 import {
   HomePage,
@@ -10,7 +11,9 @@ import {
   CourseSelectionPage,
   GradePage,
   CourseTierListPage,
-  DebugPage
+  DebugPage,
+  LoginPage,
+  SchedulePage,
 } from './pages';
 
 const { Content } = Layout;
@@ -91,6 +94,8 @@ function AppContent() {
             <Route path="/grade" element={<GradePage />} />
             <Route path="/tiers" element={<CourseTierListPage />} />
             <Route path="/debug" element={<DebugPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/schedule" element={<SchedulePage />} />
           </Routes>
         </div>
       </div>
@@ -101,7 +106,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

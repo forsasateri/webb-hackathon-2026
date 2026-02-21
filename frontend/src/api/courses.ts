@@ -1,21 +1,14 @@
 import type { Course } from '../types';
 import { BASE_URL } from './base_url';
 
-const extraFilterCourse = (course: Course) => {
-  const newTimeSlots = course.time_slots.map(ts => ({
-      id: ts.id,
-      period: ts.period % 2 + 1,
-      slot: ts.slot % 2 + 1
-    }));
+// Pass through course data as-is from backend.
+// Backend period range: 1-8, slot range: 1-4. No transformation needed.
+const extraFilterCourse = (course: Course): Course => {
+  return course;
+}
 
-    return {
-      ...course,
-      time_slots: newTimeSlots
-    };
-  }
-
-const extraFilterCourses = (courses: Course[]) => {
-  return courses.map(course => extraFilterCourse(course));
+const extraFilterCourses = (courses: Course[]): Course[] => {
+  return courses;
 }
 
 /**

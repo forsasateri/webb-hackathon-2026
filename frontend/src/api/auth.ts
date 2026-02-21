@@ -1,19 +1,25 @@
+import { BASE_URL } from './base_url';
 
 // DEV auth token for faster iteration
-export const DEV_AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" //.mock_token_for_frontend"
+export const DEV_AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_token_for_frontend"
 
 export const getAuthToken = (): string | null => {
-    return DEV_AUTH_TOKEN;
+    // In production use real token from localStorage
+    // In development fallback to DEV_AUTH_TOKEN for convenience
+    return localStorage.getItem('token') || DEV_AUTH_TOKEN;
 }
 
-// /authYregister
-// {
-//   "username": "string",
-//   "email": "string",
-//   "password": "string"
-// }
+export const setAuthToken = (token: string) => {
+    localStorage.setItem('token', token);
+}
+
+export const clearAuthToken = () => {
+    localStorage.removeItem('token');
+}
+
+// /api/auth/register
 export const register = async (username: string, email: string, password: string) => {
-    const response = await fetch('/auth/register', {
+    const response = await fetch(`${BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -28,13 +34,9 @@ export const register = async (username: string, email: string, password: string
     return await response.json();
 }
 
-// /auth/login
-// {
-//   "username": "string",
-//   "password": "string"
-// }
+// /api/auth/login
 export const login = async (username: string, password: string) => {
-    const response = await fetch('/auth/login', {
+    const response = await fetch(`${BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -50,9 +52,9 @@ export const login = async (username: string, password: string) => {
 }
 
 
-// auth/me
+// /api/auth/me
 export const getCurrentUser = async () => {
-    const response = await fetch('/auth/me', {
+    const response = await fetch(`${BASE_URL}/auth/me`, {
         headers: {
             'Authorization': `Bearer ${getAuthToken()}`
         }

@@ -8,10 +8,11 @@ const { Title } = Typography;
 interface CourseListProps {
   courses: Course[];
   title?: string;
+  onEnroll?: (id: number) => void;
   onDrop?: (id: number) => void;
 }
 
-export const CourseList = ({ courses, title = 'All Available Courses', onDrop }: CourseListProps) => {
+export const CourseList = ({ courses, title = 'All Available Courses', onEnroll, onDrop }: CourseListProps) => {
   return (
     <Content style={{ padding: '50px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -23,6 +24,7 @@ export const CourseList = ({ courses, title = 'All Available Courses', onDrop }:
             <Col xs={24} sm={24} md={12} lg={8} key={course.id}>
               <CourseCard 
               course={course} 
+              onEnroll={onEnroll}
               onDrop={onDrop}
               />
             </Col>

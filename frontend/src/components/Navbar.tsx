@@ -1,18 +1,26 @@
-import { Layout, Menu } from 'antd';
-import { Link, useLocation } from 'react-router-dom';
+import { Layout, Menu, Button, Space, Typography } from 'antd';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeOutlined,
   BookOutlined,
   SelectOutlined,
   RiseOutlined,
   PlusCircleOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  ScheduleOutlined,
+  UserOutlined,
+  LoginOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
+import { useAuth } from '../context/AuthContext';
 
 const { Header } = Layout;
+const { Text } = Typography;
 
 export const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const menuItems = [
     {
@@ -30,6 +38,15 @@ export const Navbar = () => {
       icon: <SelectOutlined />,
       label: <Link to="/selection">Course Selection</Link>
     },
+    ...(isAuthenticated
+      ? [
+          {
+            key: '/schedule',
+            icon: <ScheduleOutlined />,
+            label: <Link to="/schedule">My Schedule</Link>,
+          },
+        ]
+      : []),
     {
       key: '/grade',
       icon: <BarChartOutlined />,
@@ -41,6 +58,11 @@ export const Navbar = () => {
       label: <Link to="/tiers">Course Tiers</Link>
     }
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <Header
@@ -78,12 +100,36 @@ export const Navbar = () => {
         }}
       />
 
-      <Menu mode="horizontal" style={{ borderBottom: 'none', background: 'transparent' }}>
-        <Menu.Item key="debug" icon={<PlusCircleOutlined />} style={{ marginLeft: 'auto' }}>
-          <Link to="/debug">Debug</Link>
-        </Menu.Item>
-      </Menu>
-      
+      <Space size="middle" style={{ marginLeft: 'auto' }}>
+        {isAuthenticated ? (
+          <>
+            <Text strong style={{ color: '#1677ff' }}>
+              <UserOutlined /> {user?.username}
+            </Text>
+            <Button
+              icon={<LogoutOutlined />}
+              onClick={handleLogout}
+              size="small"
+            >
+              Logout
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="primary"
+            icon={<LoginOutlined />}
+            onClick={() => navigate('/login')}
+            size="small"
+          >
+            Login
+          </Button>
+        )}
+        <Link to="/debug">
+          <Button icon={<PlusCircleOutlined />} size="small">
+            Debug
+          </Button>
+        </Link>
+      </Space>
     </Header>
   );
 };

@@ -1,15 +1,16 @@
-import { Card, Button } from 'antd';
-import { ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Space } from 'antd';
+import { ClockCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import type { Course } from '../types';
 import { Link } from 'react-router-dom';
 import { timeSlotsToString } from '../shared';
 
 interface CourseCardProps {
   course: Course;
+  onEnroll?: (id: number) => void;
   onDrop?: (id: number) => void;
 }
 
-export const CourseCard = ({ course, onDrop }: CourseCardProps) => {
+export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
   return (
     <Card
       hoverable
@@ -27,22 +28,40 @@ export const CourseCard = ({ course, onDrop }: CourseCardProps) => {
     >
       <p>{course.description}</p>
 
-      {/* <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
-        Time: {getTimeSlotLabel(course.time_slot)}
-      </p> */}
-
-      {course.enrolled && onDrop && (
-        <Button
-          danger
-          style={{ marginTop: '12px' }}
-          onClick={(e) => {
-            e.stopPropagation(); 
-            onDrop(course.id);
-          }}
-        >
-          Drop Course
-        </Button>
-      )}
+      <Space style={{ marginTop: 12 }}>
+        {course.enrolled ? (
+          <>
+            <span style={{ color: '#52c41a' }}>
+              <CheckCircleOutlined /> Enrolled
+            </span>
+            {onDrop && (
+              <Button
+                danger
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDrop(course.id);
+                }}
+              >
+                Drop Course
+              </Button>
+            )}
+          </>
+        ) : (
+          onEnroll && (
+            <Button
+              type="primary"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEnroll(course.id);
+              }}
+            >
+              Take Course
+            </Button>
+          )
+        )}
+      </Space>
     </Card>
   );
 };
