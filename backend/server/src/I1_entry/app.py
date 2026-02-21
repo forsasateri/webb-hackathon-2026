@@ -1,17 +1,28 @@
 """
-FastAPI Application Entry Point - Phase 1: Mock API
-All endpoints return hardcoded JSON for immediate frontend integration.
-Mock data based on real LiU 6MICS courses.
+FastAPI Application Entry Point - Phase 2: Real Course Queries
+Course endpoints now use real DB. Auth/Schedule/Review endpoints remain Mock.
 """
 
-from fastapi import FastAPI, Header, HTTPException, Body
+from fastapi import FastAPI, Header, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+from sqlalchemy.orm import Session
+
+from server.src.I4_atoms.db.connection import get_db
+
+# course-service 目录含连字符，通过 __init__.py 的 importlib 重导出
+import importlib.util, os as _os
+_cs_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "course-service", "__init__.py")
+_cs_spec = importlib.util.spec_from_file_location("course_service_pkg", _os.path.normpath(_cs_init))
+_cs_mod = importlib.util.module_from_spec(_cs_spec)
+_cs_spec.loader.exec_module(_cs_mod)
+list_courses = _cs_mod.list_courses
+get_course = _cs_mod.get_course
 
 app = FastAPI(
     title="Course Selection System API",
     description="Hackathon 2026 - Course Selection System Backend API (LiU 6MICS Master's Programme)",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # CORS configuration
@@ -224,32 +235,26 @@ MOCK_RECOMMENDATIONS = [
     },
 ]
 
-# ─────────────── Course Endpoints (P0) ───────────────
+# ─────────────── Course Endpoints (P0) — REAL DB ───────────────
 
 @app.get("/api/courses", tags=["Courses"])
-def list_courses(
+def list_courses_endpoint(
     keyword: Optional[str] = None,
     department: Optional[str] = None,
     credits: Optional[int] = None,
+    db: Session = Depends(get_db),
 ):
-    """Get course list (with filtering support)"""
-    results = MOCK_COURSES
-    if keyword:
-        results = [c for c in results if keyword.lower() in c["name"].lower() or keyword.lower() in c["description"].lower()]
-    if department:
-        results = [c for c in results if c["department"] == department]
-    if credits is not None:
-        results = [c for c in results if c["credits"] == credits]
-    return {"courses": results, "total": len(results)}
+    """Get course list from database (with keyword/department/credits filtering)"""
+    return list_courses(db, keyword=keyword, department=department, credits=credits)
 
 
 @app.get("/api/courses/{course_id}", tags=["Courses"])
-def get_course(course_id: int):
-    """Get course details"""
-    for c in MOCK_COURSES:
-        if c["id"] == course_id:
-            return c
-    raise HTTPException(status_code=404, detail="Course not found")
+def get_course_endpoint(course_id: int, db: Session = Depends(get_db)):
+    """Get course details from database (includes time_slots, avg_rating, enrolled_count)"""
+    try:
+        return get_course(db, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # ─────────────── Authentication Endpoints (P0) ───────────────
 
