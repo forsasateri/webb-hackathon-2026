@@ -11,6 +11,7 @@ import {
   UserOutlined,
   LoginOutlined,
   LogoutOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,6 +38,11 @@ export const Navbar = () => {
       key: '/selection',
       icon: <SelectOutlined />,
       label: <Link to="/selection">Course Selection</Link>
+    },
+    {
+      key: '/battle',
+      icon: <ThunderboltOutlined />,
+      label: <Link to="/battle">Course Battle</Link>
     },
     ...(isAuthenticated
       ? [

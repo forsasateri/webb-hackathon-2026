@@ -4,8 +4,12 @@ import { getCourseById } from '../api';
 import { getSchedule, enrollInCourse, dropCourse } from '../api/enrollment';
 import type { Course } from '../types';
 import { LoadingSpinner, CourseDetail, NotFound } from '../components';
+import { ReviewSection } from '../components/ReviewSection';
+import { RecommendationSection } from '../components/RecommendationSection';
 import { useAuth } from '../context/AuthContext';
-import { message } from 'antd';
+import { message, Layout } from 'antd';
+
+const { Content } = Layout;
 
 export const CoursePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,11 +83,18 @@ export const CoursePage = () => {
   if (!course) return <NotFound />;
 
   const courseWithEnrolled = { ...course, enrolled };
+  const courseId = Number(id);
 
   return (
-    <CourseDetail
-      course={courseWithEnrolled}
-      onToggleEnroll={handleToggleEnroll}
-    />
+    <div>
+      <CourseDetail
+        course={courseWithEnrolled}
+        onToggleEnroll={handleToggleEnroll}
+      />
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 50px' }}>
+        <RecommendationSection courseId={courseId} />
+        <ReviewSection courseId={courseId} />
+      </div>
+    </div>
   );
 };

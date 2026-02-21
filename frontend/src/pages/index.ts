@@ -7,3 +7,4 @@ export * from './CourseTierListPage';
 export * from './DebugPage';
 export * from './LoginPage';
 export * from './SchedulePage';
+export * from './CourseBattlePage';

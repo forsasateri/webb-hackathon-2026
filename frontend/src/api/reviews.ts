@@ -1,18 +1,34 @@
 import { BASE_URL } from "./base_url";
 import { getAuthToken } from "./auth";
 
-// courses/:courseID/reviews
-export const getCourseReviews = async (courseId: number): Promise<any[]> => {
+export interface ReviewResponse {
+    id: number;
+    user_id: number;
+    username: string;
+    course_id: number;
+    rating: number;
+    comment: string;
+    created_at: string;
+}
+
+export interface ReviewsData {
+    reviews: ReviewResponse[];
+    avg_rating: number | null;
+    total: number;
+}
+
+// GET /api/courses/:courseID/reviews
+export const getCourseReviews = async (courseId: number): Promise<ReviewsData> => {
     const response = await fetch(`${BASE_URL}/courses/${courseId}/reviews`);
     if (!response.ok) {
         throw new Error('Failed to fetch course reviews');
     }
     const data = await response.json();
-    return data.reviews; // Assuming the backend returns { reviews: [...] }
+    return data;
 }
 
-// Add new
-export const addCourseReview = async (courseId: number, rating: number, comment: string): Promise<void> => {
+// POST /api/courses/:courseID/reviews
+export const addCourseReview = async (courseId: number, rating: number, comment: string): Promise<ReviewResponse> => {
     const response = await fetch(`${BASE_URL}/courses/${courseId}/reviews`, {
         method: 'POST',
         headers: {
@@ -23,15 +39,19 @@ export const addCourseReview = async (courseId: number, rating: number, comment:
     });
 
     if (!response.ok) {
-        throw new Error('Failed to add course review');
+        const errorData = await response.json().catch(() => null);
+        const error: any = new Error(errorData?.detail || 'Failed to add course review');
+        error.status = response.status;
+        error.data = errorData;
+        throw error;
     }
 
     return await response.json();
 }
 
 
-// Delete review
-export const deleteCourseReview = async (courseId: number, reviewId: number): Promise<void> => {
+// DELETE /api/reviews/:reviewId
+export const deleteCourseReview = async (reviewId: number): Promise<{ message: string }> => {
     const response = await fetch(`${BASE_URL}/reviews/${reviewId}`, {
         method: 'DELETE',
         headers: {
@@ -40,7 +60,11 @@ export const deleteCourseReview = async (courseId: number, reviewId: number): Pr
     });
 
     if (!response.ok) {
-        throw new Error('Failed to delete course review');
+        const errorData = await response.json().catch(() => null);
+        const error: any = new Error(errorData?.detail || 'Failed to delete course review');
+        error.status = response.status;
+        error.data = errorData;
+        throw error;
     }
 
     return await response.json();

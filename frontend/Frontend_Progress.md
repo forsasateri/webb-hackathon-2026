@@ -66,7 +66,7 @@
 |------|------|------|
 | P1 基础设施修复 | ✅ 完成 | API 层全部可用 |
 | P2 核心选课闭环 | ✅ 完成 | 登录/注册 UI、选课接通后端、课表页 |
-| P3 评价+推荐+趣味增强 | ⬜ 未开始 | 评价 CRUD、推荐展示、转盘接通后端 |
+| P3 评价+推荐+趣味增强 | ✅ 完成 | 评价 CRUD、推荐展示、转盘接通后端、Course Battle |
 | P4 数据驱动+体验打磨 | ⬜ 未开始 | Tier List 数据化、筛选、课表网格 |
 | P5 Demo 准备 | ⬜ 未开始 | 错误边界、UI 一致性、Demo 走查 |
 
@@ -157,6 +157,89 @@
 | Flow 8 | TypeScript 编译 (npx tsc --noEmit) | 1 | ✅ |
 | Flow 9 | P2 文件结构验证 | 3 | ✅ |
 | Flow 10 | 模块导出 + 关键导入检查 | 14 | ✅ |
+
+### TypeScript 编译
+- `npx tsc --noEmit` → 零错误
+---
+
+## P3: 评价 + 推荐 + 趣味增强 ✅ 已完成
+
+### 修复清单
+
+#### P3-1: CoursePage 集成评价系统
+- **新建文件**: `src/components/ReviewCard.tsx`, `src/components/ReviewSection.tsx`
+- **修改文件**: `src/pages/CoursePage.tsx`, `src/api/reviews.ts`
+- **功能**:
+  - `ReviewSection`: 评价列表 + 提交表单，集成到每个课程详情页底部
+  - `ReviewCard`: 单条评价卡片，展示用户名、星级(Ant Design Rate)、评论、创建时间
+  - 已登录用户可提交评价(1-5星 + 可选评论)，409 重复评价有 warning 提示
+  - 自己的评价显示 Delete 按钮，支持删除后刷新列表
+  - 未登录用户看到 "Login to write a review" 提示
+  - `reviews.ts` 新增 `ReviewResponse`、`ReviewsData` 类型，`getCourseReviews` 返回完整响应(含 avg_rating、total)
+  - `deleteCourseReview` 参数从 `(courseId, reviewId)` 简化为 `(reviewId)`
+
+#### P3-2: CoursePage 集成推荐系统
+- **新建文件**: `src/components/RecommendationSection.tsx`
+- **修改文件**: `src/api/recommendations.ts`
+- **功能**:
+  - 课程详情页新增 "Students who took this course also took" 区域
+  - 展示推荐课程卡片(code、name、credits、co_enroll_count)
+  - 每张卡片可点击跳转到对应课程详情页
+  - 无推荐时显示 "No recommendations yet"
+  - `recommendations.ts` 新增 `RecommendedCourse`、`RecommendationsData` 类型
+  - 后端实际返回字段为 `id`(非 `course_id`)，已修正类型定义
+
+#### P3-3: 转盘选课接通后端
+- **修改文件**: `src/components/rouletteSelection/CourseRoulette.tsx`, `CourseWheel.tsx`
+- **功能**:
+  - 转盘停止后弹出确认 Modal "Confirm Enrollment"，而非直接加入列表
+  - 确认后调 `enrollInCourse(courseId)` → 200 成功弹窗 / 409 冲突显示详情
+  - 未登录时点击确认 → "Please login first" warning
+  - 页面加载时从 `getSchedule()` 读取已选课程，初始化 selectedCourses
+  - `CourseWheel` 的 `setSelectedCourses` 从 `React.Dispatch` 改为普通回调函数
+
+#### P3-4: 成绩页（GradePage）接通后端
+- **状态**: P2 阶段已完成
+- GradePage 已调 `getSchedule()` 获取课程列表，过滤 `finished_status=true`
+- 成绩转换: 0-49→U, 50-69→3, 70-84→4, 85-100→5
+- 骰子游戏保持不变
+
+#### P3-5: 趣味选课：课程二选一对决 (Course Battle)
+- **新建文件**: `src/pages/CourseBattlePage.tsx`, `src/components/CourseBattle/BattleCard.tsx`
+- **路由**: `/battle`
+- **功能**:
+  - 三阶段流程: init → battle → result
+  - 初始阶段: 展示介绍文案 + "Start Battle!" 按钮
+  - 对决阶段: 左右两张课程卡片，用户点击选择喜欢的课程
+    - 胜者留下，败者被替换为推荐系统推荐的相似课程(或随机新课)
+    - 调用 `getCourseRecommendations(winnerId)` 获取推荐，优先选未出现过的
+    - 进度条显示当前轮次 / 总轮次(默认 7 轮)
+    - 加载新挑战者时有 Spin + "Finding next challenger..." 提示
+  - 结果阶段: 展示 Trophy + 最终胜出课程 + "Enroll Now" / "Play Again" 按钮
+  - `BattleCard`: 课程卡片组件，显示 code、name、credits、rating、description、时间、instructor
+    - 确定性颜色(基于 `getColorForCourse`)
+    - 选中动画和胜者高亮
+
+#### 路由 & 导航
+- `App.tsx`: 新增 `/battle` 路由 → `<CourseBattlePage />`
+- `Navbar.tsx`: 新增 "Course Battle" 菜单项(⚡ ThunderboltOutlined 图标)
+- `pages/index.ts`: 导出 `CourseBattlePage`
+- `components/index.ts`: 导出 `ReviewCard`, `ReviewSection`, `RecommendationSection`
+
+### 测试结果
+
+测试脚本: `frontend/test_p3.sh` — **64/64 通过**
+
+| Flow | 测试项 | 数量 | 结果 |
+|------|--------|------|------|
+| Flow 1 | Reviews CRUD (GET/POST/DELETE + 409 重复 + 401 未认证) | 12 | ✅ |
+| Flow 2 | Recommendations (结构验证 + 字段完整性) | 8 | ✅ |
+| Flow 3 | Roulette 选课 (enroll + schedule 验证 + 冲突检测) | 10 | ✅ |
+| Flow 4 | GradePage (schedule 数据 + score/finished_status 字段) | 4 | ✅ |
+| Flow 5 | Course Battle (API paths + recommend + enroll) | 7 | ✅ |
+| Flow 6 | TypeScript 编译 (npx tsc --noEmit) | 1 | ✅ |
+| Flow 7 | P3 文件结构验证 (5 new files) | 5 | ✅ |
+| Flow 8 | 模块导出 + 关键导入检查 | 17 | ✅ |
 
 ### TypeScript 编译
 - `npx tsc --noEmit` → 零错误

@@ -5,3 +5,6 @@ export * from './CourseList';
 export * from './CourseDetail';
 export * from './NotFound';
 export * from './rouletteSelection/CourseRoulette';
+export * from './ReviewCard';
+export * from './ReviewSection';
+export * from './RecommendationSection';

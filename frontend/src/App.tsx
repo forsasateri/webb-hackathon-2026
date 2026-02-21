@@ -14,6 +14,7 @@ import {
   DebugPage,
   LoginPage,
   SchedulePage,
+  CourseBattlePage,
 } from './pages';
 
 const { Content } = Layout;
@@ -96,6 +97,7 @@ function AppContent() {
             <Route path="/debug" element={<DebugPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/battle" element={<CourseBattlePage />} />
           </Routes>
         </div>
       </div>

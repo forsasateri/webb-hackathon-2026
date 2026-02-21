@@ -8,7 +8,7 @@ import type { Course } from '../../types';
 
 interface CourseWheelProps {
   validCourses: Course[];
-  setSelectedCourses: React.Dispatch<React.SetStateAction<Course[]>>;
+  setSelectedCourses: (courses: Course[]) => void;
 }
 
 export const CourseWheel = ({ validCourses, setSelectedCourses }: CourseWheelProps) => {
@@ -37,7 +37,8 @@ export const CourseWheel = ({ validCourses, setSelectedCourses }: CourseWheelPro
 
     const handleStopSpinning = () => {
         setMustSpin(false);
-        setSelectedCourses(prev => [...prev, validCourses[prizeNumber]]);
+        // Pass the selected course to the parent via a synthetic array representation
+        setSelectedCourses([validCourses[prizeNumber]]);
     };
 
     return (

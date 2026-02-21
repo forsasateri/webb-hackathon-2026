@@ -1,58 +1,80 @@
 import { Card, Typography, Select } from 'antd';
 import { useState } from 'react';
-import type { Course } from '../types';
+import type { ScheduleEntry } from '../api/enrollment';
 import { RollTheDice } from './rollTheDice';
 
 const { Title } = Typography;
 const { Option } = Select;
 
+// Convert numeric score (0-100) to Swedish grade (U/3/4/5)
+const convertToSwedishGrade = (score: number | null): string => {
+  if (score === null) return 'In Progress';
+  if (score < 50) return 'U';
+  if (score < 70) return '3';
+  if (score < 85) return '4';
+  return '5';
+};
+
 interface GradesPageProps {
-  courses: Course[];
+  scheduleEntries: ScheduleEntry[];
 }
 
-export const GradesPage = ({ courses }: GradesPageProps) => {
-  const completedCourses = courses.filter(
-    (course) => course.enrolled
+export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
+  // Filter for completed courses (finished_status = true)
+  const completedCourses = scheduleEntries.filter(
+    (entry) => entry.finished_status
   );
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const selectedCourse = completedCourses.find(
-    (c) => c.id === selectedId
+  const selectedEntry = completedCourses.find(
+    (entry) => entry.course.id === selectedId
   );
 
   return (
     <div style={{ textAlign: 'center', marginTop: '40px' }}>
       <Title level={2}>My Grades</Title>
 
-      <Select
-        style={{ width: 300 }}
-        placeholder="Select a completed course"
-        onChange={(value) => setSelectedId(value)}
-      >
-        {completedCourses.map((course) => (
-          <Option key={course.id} value={course.id}>
-            {course.code}
-          </Option>
-        ))}
-      </Select>
+      {completedCourses.length === 0 ? (
+        <Typography.Paragraph style={{ fontSize: '16px', marginTop: '20px', color: '#999' }}>
+          No completed courses yet. Complete your enrolled courses to see grades here.
+        </Typography.Paragraph>
+      ) : (
+        <>
+          <Select
+            style={{ width: 300 }}
+            placeholder="Select a completed course"
+            onChange={(value) => setSelectedId(value)}
+          >
+            {completedCourses.map((entry) => (
+              <Option key={entry.course.id} value={entry.course.id}>
+                {entry.course.code} - {entry.course.name}
+              </Option>
+            ))}
+          </Select>
 
-      {selectedCourse && (
-        <Card style={{ marginTop: '30px', maxWidth: '500px', marginInline: 'auto' }}>
-          <Title level={4}>
-            {selectedCourse.code} - {selectedCourse.name}
-          </Title>
-          <p><strong>Grade:</strong> {selectedCourse.score}</p>
-        </Card>
-      )}
+          {selectedEntry && (
+            <Card style={{ marginTop: '30px', maxWidth: '500px', marginInline: 'auto' }}>
+              <Title level={4}>
+                {selectedEntry.course.code} - {selectedEntry.course.name}
+              </Title>
+              <p><strong>Numeric Score:</strong> {selectedEntry.score}/100</p>
+              <p><strong>Swedish Grade:</strong> {convertToSwedishGrade(selectedEntry.score)}</p>
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>
+                Grading scale: 0-49=U, 50-69=3, 70-84=4, 85-100=5
+              </p>
+            </Card>
+          )}
 
-      {/* Dice Game Integration */}
-      {selectedCourse && (
-        <RollTheDice
-          key={selectedCourse.id}
-          currentScore={selectedCourse.score}
-          courseCode={selectedCourse.code}
-        />
+          {/* Dice Game Integration */}
+          {selectedEntry && selectedEntry.score !== null && (
+            <RollTheDice
+              key={selectedEntry.course.id}
+              currentScore={convertToSwedishGrade(selectedEntry.score)}
+              courseCode={selectedEntry.course.code}
+            />
+          )}
+        </>
       )}
     </div>
   );

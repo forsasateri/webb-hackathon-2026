@@ -391,16 +391,26 @@ Navbar 新增:
 改动要点:
   当前: 转盘选中课程后只加入本地 selectedCourses 状态
   改为:
-    1. 转盘停止 → 弹出确认框 "选中了 [课程名]，确认选课？"
-    2. 确认 → enrollInCourse(courseId)
+    1. 初始状态优化（新增）:
+       - 一开始不加载所有课程到转盘（避免过于密集）
+       - 显示 "Generate Random Courses" 按钮
+       - 点击后随机从有效课程中选择 12-15 门课程作为转盘候选池
+       - 这些课程显示在转盘上供用户选择
+       - 用户可以重新生成不同的随机子集
+    
+    2. 转盘停止 → 弹出确认框 "选中了 [课程名]，确认选课？"
+    
+    3. 确认 → enrollInCourse(courseId)
        - 200 → message.success + 加入 selectedCourses
        - 409 冲突 → 显示冲突信息 + 不加入列表（但保留在可选池中让用户知道）
        - 需登录提示: 未登录时点 SPIN → 弹出 "请先登录"
-    3. selectedCourses 同步从 getSchedule() 获取初始值（页面加载时）
+    
+    4. selectedCourses 同步从 getSchedule() 获取初始值（页面加载时）
 
 额外改进:
   - filterValidCourses 逻辑已在前端实现时间冲突判断（保留）
   - 后端也做冲突检测（双重保险）
+  - 随机子集大小可配置（默认 12-15 门）
 ```
 
 #### P3-4: 成绩页（GradePage）接通后端
@@ -417,6 +427,31 @@ Navbar 新增:
     4. 转换为瑞典等级: 0-49→U, 50-69→3, 70-84→4, 85-100→5
     5. 骰子游戏逻辑不变（用随机成绩模拟"改命"的趣味体验）
     6. 如果 score 为 null（未完成课程）→ 显示 "In Progress"
+```
+
+#### P3-5: 趣味选课：课程二选一对决 (Course Battle)
+
+```
+新建文件: src/pages/CourseBattlePage.tsx + src/components/CourseBattle/BattleCard.tsx
+路由: /battle
+
+改动要点:
+  新增一种类似 Tinder/对决 的趣味选课方式:
+  1. 初始状态: 随机从课程列表中选出两门课程展示在左右两张卡片上。
+  2. 交互: 用户点击选择其中一张更喜欢的课程（胜者）。
+  3. 推荐补充: 
+     - 淘汰未被选中的课程。
+     - 调用 getCourseRecommendations(胜者课程ID) 获取与胜者相似的推荐课程。
+     - 从推荐列表中选出一门未出现过的课程，作为新的挑战者，补充到空缺的卡片位置。
+     - 如果推荐列表为空或已耗尽，则随机补充一门新课程。
+  4. 轮次机制: 设定一个总轮次（例如 5 轮或 10 轮）。
+  5. 最终结果: 达到指定轮次后，最后留下的课程即为"用户最喜欢的课程"。
+  6. 选课操作: 结果页展示最终胜出的课程，并提供 "Enroll Now" 按钮，点击后调用 enrollInCourse(courseId)。
+     - 成功 → message.success
+     - 冲突 → 提示冲突信息
+
+Navbar 新增:
+  - "Course Battle" 菜单项（趣味选课入口）
 ```
 
 ### P3 测试方法
@@ -443,17 +478,29 @@ Navbar 新增:
 
 流程 3 — 转盘选课:
   1. 登录 → 访问 /selection
-  2. 转盘显示可选课程
-  3. SPIN → 停止 → 确认框弹出
-  4. 确认 → Network POST /api/schedule/enroll → 200 → message.success
-  5. 再转 → 选到时间冲突的课 → 409 → 显示冲突信息
-  6. 未登录时 SPIN → 提示登录
+  2. 初始状态: 显示 "Generate Random Courses" 按钮（转盘不可见或为空）
+  3. 点击 "Generate Random Courses" → 转盘显示 12-15 门随机课程
+  4. 验证转盘课程数量在合理范围内（不会过于密集）
+  5. SPIN → 停止 → 确认框弹出
+  6. 确认 → Network POST /api/schedule/enroll → 200 → message.success
+  7. 再转 → 选到时间冲突的课 → 409 → 显示冲突信息
+  8. 测试重新生成: 点击 "Generate Random Courses" 再次生成不同的课程子集
+  9. 未登录时 SPIN → 提示登录
 
 流程 4 — 成绩页:
   1. 登录 → 选几门课 → 访问 /grade
   2. Network 确认 GET /api/schedule 200
   3. 仅显示 finished_status=true 的课程（如有 seed 数据）
   4. 骰子游戏仍可玩
+
+流程 5 — 课程二选一对决 (Course Battle):
+  1. 登录 → 访问 /battle
+  2. 页面展示两门初始课程卡片。
+  3. 点击选择其中一门，另一门被替换为新课程。
+  4. Network 确认调用了 GET /api/courses/{id}/recommend 获取推荐。
+  5. 连续选择达到设定轮次（如 5 轮）。
+  6. 页面展示最终胜出的课程，并显示 "Enroll Now" 按钮。
+  7. 点击 Enroll → Network POST /api/schedule/enroll → 200 → message.success。
 
 回归测试:
   - /courses 列表加载正常
@@ -691,7 +738,7 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 |------|----------|----------|
 | P1 | — | api/auth.ts, api/index.ts, api/courses.ts, api/enrollment.ts |
 | P2 | context/AuthContext.tsx, pages/LoginPage.tsx, pages/SchedulePage.tsx, types/course.ts(扩展) | App.tsx, Navbar.tsx, AllCoursesPage.tsx, CoursePage.tsx, CourseCard.tsx, CourseDetail.tsx |
-| P3 | components/ReviewSection.tsx, components/ReviewCard.tsx, components/RecommendationSection.tsx | CoursePage.tsx, CourseRoulette.tsx, GradePage.tsx, CourseGrade.tsx |
+| P3 | components/ReviewSection.tsx, components/ReviewCard.tsx, components/RecommendationSection.tsx, pages/CourseBattlePage.tsx, components/CourseBattle/BattleCard.tsx | CoursePage.tsx, CourseRoulette.tsx, GradePage.tsx, CourseGrade.tsx, App.tsx, Navbar.tsx |
 | P4 | components/ScheduleGrid.tsx, context/ScheduleContext.tsx | Tierlist.tsx, AllCoursesPage.tsx, DebugPage.tsx |
 | P5 | — | 全站 Bug 修复 |
 
@@ -713,6 +760,6 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 | GET `/api/courses/{id}/reviews` | CoursePage → ReviewSection |
 | POST `/api/courses/{id}/reviews` | CoursePage → ReviewSection |
 | DELETE `/api/reviews/{id}` | CoursePage → ReviewSection |
-| GET `/api/courses/{id}/recommend` | CoursePage → RecommendationSection |
+| GET `/api/courses/{id}/recommend` | CoursePage → RecommendationSection, CourseBattlePage |
 
 **13/13 端点全部有前端调用点 ✅**
