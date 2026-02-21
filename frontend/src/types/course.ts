@@ -4,4 +4,6 @@ export interface Course {
   name: string;
   description: string;
   time_slot: 1 | 2 | 3 | 4;
+  enrolled: boolean;
+  score: string;
 }
