@@ -5,5 +5,5 @@ export interface Course {
   description: string;
   time_slot: 1 | 2 | 3 | 4;
   enrolled: boolean;
-  score: string;
+  score?: string;
 }
