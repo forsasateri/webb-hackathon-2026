@@ -4,4 +4,4 @@ export * from './LoadingSpinner';
 export * from './CourseList';
 export * from './CourseDetail';
 export * from './NotFound';
-export * from './CourseRoulette';
+export * from './rouletteSelection/CourseRoulette';

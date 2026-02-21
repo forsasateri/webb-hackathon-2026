@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Wheel } from 'react-custom-roulette';
 import { Button, Typography, Card } from 'antd';
-import type { Course } from '../types';
-import { getColorForString } from '../shared';
+import type { Course } from '../../types';
+import { getColorForString } from '../../shared';
 
-const { Title, Paragraph } = Typography;
+import { SelectedCourse } from './selectedCourse';
 
 // Color palette for the wheel
 const WHEEL_COLORS = [
@@ -14,6 +14,13 @@ const WHEEL_COLORS = [
   '#06A77D', '#F19CBB', '#A8DADC', '#E76F51'
 ];
 
+// Filter out all courses with same time slot as the currently selected courses to prevent time conflicts. If no courses are selected, return all courses.
+const filterValidCourses = (courses: Course[], selectedCourses: Course[]) => {
+  if (selectedCourses.length === 0) return courses;
+  const selectedTimeSlots = selectedCourses.map(course => course.time_slot);
+  return courses.filter(course => !selectedTimeSlots.includes(course.time_slot));
+};
+
 interface CourseRouletteProps {
   courses: Course[];
 }
@@ -21,37 +28,43 @@ interface CourseRouletteProps {
 export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
   const [mustSpin, setMustSpin] = useState(false);
   const [prizeNumber, setPrizeNumber] = useState(0);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
+  const validCourses = filterValidCourses(courses, selectedCourses);
 
   // Convert courses to wheel data format with deterministic colors
   // useMemo ensures colors don't change on re-renders
   const data = useMemo(
-    () => courses.map((course) => ({
+    () => validCourses.map((course) => ({
       option: course.courseCode,
       style: { 
         backgroundColor: getColorForString(course.name, WHEEL_COLORS),
         textColor: 'white',
       },
     })),
-    [courses]
+    [validCourses]
   );
 
   const handleSpinClick = () => {
     if (mustSpin) return;
     
-    const newPrizeNumber = Math.floor(Math.random() * courses.length);
+    const newPrizeNumber = Math.floor(Math.random() * validCourses.length);
     setPrizeNumber(newPrizeNumber);
     setMustSpin(true);
-    setSelectedCourse(null);
+    //setSelectedCourses([]);
   };
 
   const handleStopSpinning = () => {
     setMustSpin(false);
-    setSelectedCourse(courses[prizeNumber]);
+    setSelectedCourses(prev => [...prev, validCourses[prizeNumber]]);
   };
 
   return (
     <div style={{ textAlign: 'center' }}>
+      {validCourses.length === 0 ? (
+        <Typography.Title level={2} style={{ marginTop: '50px' }}>
+          No more valid courses to select! Please refresh to start over.
+        </Typography.Title>
+      ) : (
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '30px' }}>
         <Wheel
           mustStartSpinning={mustSpin}
@@ -66,8 +79,10 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
           radiusLineColor="#333"
           radiusLineWidth={2}
           fontSize={14}
+          spinDuration={0.2}
         />
       </div>
+      )}
       
       <Button 
         type="primary" 
@@ -78,23 +93,8 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
         {mustSpin ? 'Spinning...' : 'SPIN THE WHEEL'}
       </Button>
 
-      {selectedCourse && (
-        <Card 
-          style={{ 
-            marginTop: '40px', 
-            maxWidth: '600px', 
-            marginLeft: 'auto', 
-            marginRight: 'auto' 
-          }}
-        >
-          <Title level={3}>🎉 You got: {selectedCourse.courseCode} - {selectedCourse.name}!</Title>
-          <Paragraph style={{ fontSize: '16px', marginTop: '16px' }}>
-            {selectedCourse.description}
-          </Paragraph>
-          <Paragraph style={{ color: '#888' }}>
-            <strong>Time Slot:</strong> {selectedCourse.time_slot}
-          </Paragraph>
-        </Card>
+      {selectedCourses.length > 0 && (
+        selectedCourses.map(course => <SelectedCourse key={course.id} course={course} />)
       )}
     </div>
   );
