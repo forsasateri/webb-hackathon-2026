@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Layout, Typography, Button, Card, Empty, Tag, Space, Row, Col, message } from 'antd';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+// confetti available via canvas-confetti if needed
 import {
   DeleteOutlined,
   CalendarOutlined,
@@ -73,10 +75,20 @@ export const SchedulePage = () => {
     <Content style={{ padding: '50px' }}>
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ margin: 0 }}>
+          <Title level={2} style={{
+            margin: 0,
+            fontFamily: "var(--font-display, 'Orbitron', monospace)",
+            letterSpacing: '0.03em',
+          }}>
             <CalendarOutlined /> My Schedule
           </Title>
-          <Tag color="blue" style={{ fontSize: 16, padding: '4px 12px' }}>
+          <Tag color="blue" style={{
+            fontSize: 16,
+            padding: '4px 16px',
+            background: 'rgba(0, 240, 255, 0.1)',
+            borderColor: 'rgba(0, 240, 255, 0.3)',
+            color: '#00f0ff',
+          }}>
             Total Credits: {totalCredits}
           </Tag>
         </div>
@@ -91,10 +103,16 @@ export const SchedulePage = () => {
           </Empty>
         ) : (
           <Row gutter={[16, 16]}>
-            {schedule.map((entry) => (
+            {schedule.map((entry, index) => (
               <Col xs={24} md={12} key={entry.enrollment_id}>
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.06, duration: 0.3 }}
+                >
                 <Card
                   hoverable
+                  className="card-hover-lift"
                   title={
                     <Link to={`/course/${entry.course.id}`}>
                       <strong>{entry.course.code}</strong> - {entry.course.name}
@@ -127,6 +145,7 @@ export const SchedulePage = () => {
                     </Button>
                   </Space>
                 </Card>
+                </motion.div>
               </Col>
             ))}
           </Row>

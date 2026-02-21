@@ -78,8 +78,10 @@ export const Navbar = () => {
         zIndex: 10,
         width: '100%',
         padding: '0 40px',
-        background: '#ffffff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        background: 'rgba(10, 14, 26, 0.85)',
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 1px 0 rgba(0, 240, 255, 0.1), 0 4px 30px rgba(0, 0, 0, 0.4)',
+        borderBottom: '1px solid rgba(0, 240, 255, 0.08)',
         display: 'flex',
         alignItems: 'center'
       }}
@@ -87,9 +89,12 @@ export const Navbar = () => {
       <div
         style={{
           fontSize: 20,
-          fontWeight: 600,
+          fontWeight: 700,
           marginRight: 40,
-          color: '#111827'
+          fontFamily: "var(--font-display, 'Orbitron', monospace)",
+          color: '#00f0ff',
+          textShadow: '0 0 10px rgba(0, 240, 255, 0.5), 0 0 30px rgba(0, 240, 255, 0.2)',
+          letterSpacing: '0.05em',
         }}
       >
         Better LISAM
@@ -109,7 +114,7 @@ export const Navbar = () => {
       <Space size="middle" style={{ marginLeft: 'auto' }}>
         {isAuthenticated ? (
           <>
-            <Text strong style={{ color: '#1677ff' }}>
+            <Text strong style={{ color: '#00f0ff', textShadow: '0 0 8px rgba(0, 240, 255, 0.4)' }}>
               <UserOutlined /> {user?.username}
             </Text>
             <Button

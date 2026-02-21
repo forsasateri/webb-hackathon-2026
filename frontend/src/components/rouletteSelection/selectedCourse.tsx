@@ -1,4 +1,4 @@
-import { Button, Typography, Card } from 'antd';
+import { Typography, Card } from 'antd';
 import type { Course } from '../../types';
 import { timeSlotsToString } from '../../shared';
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button, Typography, Modal, message } from 'antd';
+import confetti from 'canvas-confetti';
 import type { Course } from '../../types';
 import { enrollInCourse, getSchedule } from '../../api/enrollment';
 import { useAuth } from '../../context/AuthContext';
@@ -55,6 +56,8 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
   const [wheelCourses, setWheelCourses] = useState<Course[]>([]);
   const [pendingCourse, setPendingCourse] = useState<Course | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+  const [mustSpin, setMustSpin] = useState(false);
+  const [prizeNumber, setPrizeNumber] = useState(0);
 
   // Load already enrolled courses from backend on mount
   useEffect(() => {
@@ -78,12 +81,18 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
     setWheelCourses(randomSubset);
   };
 
-  // Override setSelectedCourses to intercept and show confirmation
-  const handleWheelStop = (newCourses: Course[]) => {
-    // Find the newly added course (last one)
-    const newCourse = newCourses[newCourses.length - 1];
-    if (newCourse) {
-      setPendingCourse(newCourse);
+  const handleSpinClick = () => {
+    if (mustSpin || wheelCourses.length === 0) return;
+    const newPrizeNumber = Math.floor(Math.random() * wheelCourses.length);
+    setPrizeNumber(newPrizeNumber);
+    setMustSpin(true);
+  };
+
+  const handleStopSpinning = () => {
+    setMustSpin(false);
+    const selected = wheelCourses[prizeNumber];
+    if (selected) {
+      setPendingCourse(selected);
     }
   };
 
@@ -100,6 +109,8 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
     try {
       await enrollInCourse(pendingCourse.id);
       message.success(`Successfully enrolled in ${pendingCourse.code}!`);
+      // Fire confetti on successful enrollment
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#00f0ff', '#b026ff', '#ffd700', '#39ff14'] });
       setSelectedCourses(prev => [...prev, pendingCourse]);
     } catch (err: any) {
       if (err.status === 409) {
@@ -123,20 +134,18 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <Typography.Title level={2} style={{ marginTop: '20px', marginBottom: '30px' }}>
-        Course Selection Wheel
-      </Typography.Title>
-      
       {wheelCourses.length === 0 ? (
         <div style={{ marginTop: '50px' }}>
-          <Typography.Paragraph style={{ fontSize: '16px', marginBottom: '20px' }}>
+          <Typography.Paragraph style={{ fontSize: '16px', marginBottom: '20px', color: 'var(--text-secondary)' }}>
             Click the button below to generate a random selection of courses for the wheel.
           </Typography.Paragraph>
           <Button 
+            className="cta-breathing"
             type="primary" 
             size="large" 
             onClick={handleGenerateRandomCourses}
             disabled={validCourses.length === 0}
+            style={{ height: 48, borderRadius: 12, fontWeight: 600 }}
           >
             🎲 Generate Random Courses
           </Button>
@@ -157,16 +166,40 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
           >
             🔄 Regenerate Courses
           </Button>
-          <CourseWheel 
-            validCourses={wheelCourses} 
-            setSelectedCourses={handleWheelStop} 
-          />
+          <div className="roulette-frame" style={{ margin: '0 auto' }}>
+            <div className="roulette-frame-inner">
+              <CourseWheel 
+                validCourses={wheelCourses}
+                mustSpin={mustSpin}
+                prizeNumber={prizeNumber}
+                onStopSpinning={handleStopSpinning}
+              />
+            </div>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            onClick={handleSpinClick}
+            disabled={mustSpin}
+            style={{ marginTop: '24px', height: 48, borderRadius: 12, fontWeight: 700, fontSize: 16, letterSpacing: '0.05em' }}
+          >
+            {mustSpin ? 'Spinning...' : '🎰 SPIN THE WHEEL'}
+          </Button>
         </>
       )}
 
       {/* Confirmation Modal */}
       <Modal
-        title="Confirm Enrollment"
+        title={
+          <span style={{
+            fontFamily: "var(--font-display, 'Orbitron', monospace)",
+            color: '#00f0ff',
+            textShadow: '0 0 8px rgba(0, 240, 255, 0.4)',
+            letterSpacing: '0.05em',
+          }}>
+            Confirm Enrollment
+          </span>
+        }
         open={!!pendingCourse}
         onOk={handleConfirmEnroll}
         onCancel={handleCancelEnroll}
@@ -175,18 +208,30 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
         cancelText="Cancel"
       >
         {pendingCourse && (
-          <div>
-            <p>You landed on:</p>
-            <p><strong>{pendingCourse.code} - {pendingCourse.name}</strong></p>
-            <p>Credits: {pendingCourse.credits}</p>
-            <p>Would you like to enroll in this course?</p>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>You landed on:</p>
+            <p style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#00f0ff',
+              textShadow: '0 0 8px rgba(0, 240, 255, 0.3)',
+            }}>
+              {pendingCourse.code} - {pendingCourse.name}
+            </p>
+            <p style={{ color: 'var(--text-secondary)' }}>Credits: {pendingCourse.credits}</p>
+            <p style={{ color: 'var(--text-secondary)' }}>Would you like to enroll in this course?</p>
           </div>
         )}
       </Modal>
 
       {selectedCourses.length > 0 && (
         <div style={{ marginTop: '40px' }}>
-          <Typography.Title level={3}>Selected Courses</Typography.Title>
+          <Typography.Title level={3} style={{
+            fontFamily: "var(--font-display, 'Orbitron', monospace)",
+            letterSpacing: '0.03em',
+          }}>
+            Selected Courses
+          </Typography.Title>
           {selectedCourses.map(course => <SelectedCourse key={course.id} course={course} />)}
         </div>
       )}

@@ -115,8 +115,13 @@ export const LoginPage = () => {
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto' }}>
-      <Title level={2} style={{ textAlign: 'center', marginBottom: 8 }}>
-        Welcome to Better LISAM
+      <Title level={2} style={{
+        textAlign: 'center',
+        marginBottom: 8,
+        fontFamily: "var(--font-display, 'Orbitron', monospace)",
+        letterSpacing: '0.05em',
+      }}>
+        Welcome
       </Title>
       <Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 24 }}>
         Login or register to manage your courses
@@ -141,7 +146,11 @@ export const LoginPage = () => {
               onClick={handleDevLogin}
               loading={loading}
               block
-              style={{ background: '#f0f5ff', borderColor: '#adc6ff' }}
+              style={{
+                background: 'rgba(0, 240, 255, 0.08)',
+                borderColor: 'rgba(0, 240, 255, 0.3)',
+                color: '#00f0ff',
+              }}
             >
               Dev Login (testuser1)
             </Button>

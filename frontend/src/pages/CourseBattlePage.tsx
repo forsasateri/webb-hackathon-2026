@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Progress, message, Modal, Result, Tag, Spin } from 'antd';
+import { Typography, Button, Space, Progress, message, Result, Tag } from 'antd';
 import { ThunderboltOutlined, TrophyOutlined, ReloadOutlined } from '@ant-design/icons';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { BattleCard } from '../components/CourseBattle/BattleCard';
 import { getAllCourses } from '../api/courses';
 import { getCourseRecommendations } from '../api/recommendations';
@@ -78,7 +80,7 @@ export const CourseBattlePage = () => {
     if (animating || fetchingNext) return;
 
     const isLeft = selected.id === leftCourse?.id;
-    const loser = isLeft ? rightCourse : leftCourse;
+    // loser = isLeft ? rightCourse : leftCourse;
 
     // Last round → we have our winner
     if (round >= TOTAL_ROUNDS) {
@@ -181,8 +183,14 @@ export const CourseBattlePage = () => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
-        <Spin size="large" />
-        <Paragraph style={{ marginTop: 16 }}>Loading courses...</Paragraph>
+        <div className="cyber-loader" style={{ marginBottom: 16 }}>
+          <div className="cyber-loader-bar" />
+          <div className="cyber-loader-bar" />
+          <div className="cyber-loader-bar" />
+          <div className="cyber-loader-bar" />
+          <div className="cyber-loader-bar" />
+        </div>
+        <Paragraph style={{ marginTop: 16, color: 'var(--text-secondary)' }}>Loading courses...</Paragraph>
       </div>
     );
   }
@@ -190,34 +198,70 @@ export const CourseBattlePage = () => {
   // ── Init Phase ──
   if (phase === 'init') {
     return (
-      <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-        <ThunderboltOutlined style={{ fontSize: 64, color: '#faad14' }} />
-        <Title level={2} style={{ marginTop: 16 }}>Course Battle</Title>
-        <Paragraph style={{ fontSize: 16, maxWidth: 500, margin: '0 auto 24px' }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        style={{ textAlign: 'center', padding: '40px 20px' }}
+      >
+        <ThunderboltOutlined style={{
+          fontSize: 64,
+          color: '#ffd700',
+          filter: 'drop-shadow(0 0 20px rgba(255, 215, 0, 0.5))',
+        }} />
+        <Title level={2} style={{
+          marginTop: 16,
+          fontFamily: "var(--font-display, 'Orbitron', monospace)",
+          letterSpacing: '0.05em',
+        }}>
+          Course Battle
+        </Title>
+        <Paragraph style={{ fontSize: 16, maxWidth: 500, margin: '0 auto 24px', color: 'var(--text-secondary)' }}>
           Two courses enter, one survives! Pick your favorite in each round.
           After {TOTAL_ROUNDS} rounds, your champion course will be revealed.
           The system uses course recommendations to find worthy challengers!
         </Paragraph>
         <Button
+          className="cta-breathing"
           type="primary"
           size="large"
           icon={<ThunderboltOutlined />}
           onClick={startBattle}
           disabled={allCourses.length < 2}
+          style={{
+            height: 48,
+            borderRadius: 12,
+            fontWeight: 600,
+            fontSize: 15,
+          }}
         >
           Start Battle!
         </Button>
-      </div>
+      </motion.div>
     );
   }
 
   // ── Result Phase ──
   if (phase === 'result' && winner) {
+    // Fire confetti on result
+    setTimeout(() => {
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: ['#00f0ff', '#b026ff', '#ffd700', '#ff003c'] });
+    }, 200);
+
     return (
-      <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        style={{ textAlign: 'center', padding: '40px 20px' }}
+      >
         <Result
-          icon={<TrophyOutlined style={{ color: '#faad14', fontSize: 64 }} />}
-          title="Your Champion Course!"
+          icon={<TrophyOutlined style={{
+            color: '#ffd700',
+            fontSize: 64,
+            filter: 'drop-shadow(0 0 30px rgba(255, 215, 0, 0.6))',
+          }} />}
+          title={<span style={{ fontFamily: "var(--font-display)", letterSpacing: '0.05em' }}>Your Champion Course!</span>}
           subTitle={`After ${round} rounds of battle, your favorite course is:`}
         />
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
@@ -229,6 +273,8 @@ export const CourseBattlePage = () => {
             size="large"
             onClick={handleEnroll}
             loading={enrolling}
+            className="cta-breathing"
+            style={{ height: 48, borderRadius: 12, fontWeight: 600 }}
           >
             Enroll Now!
           </Button>
@@ -236,19 +282,23 @@ export const CourseBattlePage = () => {
             size="large"
             icon={<ReloadOutlined />}
             onClick={startBattle}
+            style={{ height: 48, borderRadius: 12 }}
           >
             Play Again
           </Button>
         </Space>
-      </div>
+      </motion.div>
     );
   }
 
   // ── Battle Phase ──
   return (
     <div style={{ textAlign: 'center', padding: '20px' }}>
-      <Title level={2}>
-        <ThunderboltOutlined /> Course Battle
+      <Title level={2} style={{
+        fontFamily: "var(--font-display, 'Orbitron', monospace)",
+        letterSpacing: '0.05em',
+      }}>
+        <ThunderboltOutlined style={{ color: '#ffd700', filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.5))' }} /> Course Battle
       </Title>
 
       <Space style={{ marginBottom: 16 }}>
@@ -260,11 +310,14 @@ export const CourseBattlePage = () => {
       <Progress
         percent={Math.round((round / TOTAL_ROUNDS) * 100)}
         showInfo={false}
-        strokeColor="#faad14"
+        strokeColor={{
+          '0%': '#00f0ff',
+          '100%': '#b026ff',
+        }}
         style={{ maxWidth: 400, margin: '0 auto 24px' }}
       />
 
-      <Text style={{ display: 'block', marginBottom: 24, fontSize: 16 }}>
+      <Text style={{ display: 'block', marginBottom: 24, fontSize: 16, color: 'var(--text-secondary)' }}>
         Which course do you prefer? Click to choose!
       </Text>
 
@@ -272,43 +325,71 @@ export const CourseBattlePage = () => {
         style={{
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'stretch',
-          gap: 40,
+          alignItems: 'center',
+          gap: 24,
           flexWrap: 'wrap',
-          opacity: animating ? 0.5 : 1,
-          transition: 'opacity 0.3s ease',
         }}
       >
-        {leftCourse && (
-          <BattleCard
-            course={leftCourse}
-            onSelect={handleSelect}
-            disabled={animating}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {leftCourse && (
+            <motion.div
+              key={`left-${leftCourse.id}`}
+              initial={{ opacity: 0, x: -50, rotateY: -15 }}
+              animate={{ opacity: animating ? 0.5 : 1, x: 0, rotateY: 0 }}
+              exit={{ opacity: 0, x: -80, scale: 0.8 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              <BattleCard
+                course={leftCourse}
+                onSelect={handleSelect}
+                disabled={animating}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          fontSize: 32,
-          fontWeight: 'bold',
-          color: '#faad14',
-        }}>
+        {/* VS badge */}
+        <div
+          className="vs-flash"
+          style={{
+            fontFamily: "var(--font-display, 'Orbitron', monospace)",
+            fontSize: 48,
+            fontWeight: 900,
+            color: '#ffd700',
+            lineHeight: 1,
+            userSelect: 'none',
+          }}
+        >
           VS
         </div>
 
-        {rightCourse && (
-          <BattleCard
-            course={rightCourse}
-            onSelect={handleSelect}
-            disabled={animating}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {rightCourse && (
+            <motion.div
+              key={`right-${rightCourse.id}`}
+              initial={{ opacity: 0, x: 50, rotateY: 15 }}
+              animate={{ opacity: animating ? 0.5 : 1, x: 0, rotateY: 0 }}
+              exit={{ opacity: 0, x: 80, scale: 0.8 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              <BattleCard
+                course={rightCourse}
+                onSelect={handleSelect}
+                disabled={animating}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {fetchingNext && (
         <div style={{ marginTop: 20 }}>
-          <Spin size="small" /> <Text type="secondary">Finding next challenger...</Text>
+          <div className="cyber-loader" style={{ display: 'inline-flex', marginRight: 8 }}>
+            <div className="cyber-loader-bar" style={{ height: 12 }} />
+            <div className="cyber-loader-bar" style={{ height: 12 }} />
+            <div className="cyber-loader-bar" style={{ height: 12 }} />
+          </div>
+          <Text type="secondary">Finding next challenger...</Text>
         </div>
       )}
     </div>

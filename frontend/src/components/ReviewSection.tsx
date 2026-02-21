@@ -146,8 +146,8 @@ export const ReviewSection = ({ courseId }: ReviewSectionProps) => {
 
       {/* Submit review form — 6 dimensions */}
       {isAuthenticated ? (
-        <div style={{ marginBottom: 24, padding: 16, background: '#fafafa', borderRadius: 8 }}>
-          <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 12 }}>Write a Review</Text>
+        <div style={{ marginBottom: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}>
+          <Text strong style={{ fontSize: 15, display: 'block', marginBottom: 12, color: 'var(--text-primary)' }}>Write a Review</Text>
           <Row gutter={[16, 8]}>
             {RATING_DIMENSIONS.map((d) => (
               <Col xs={24} sm={12} key={d.key}>
@@ -189,7 +189,7 @@ export const ReviewSection = ({ courseId }: ReviewSectionProps) => {
           </Button>
         </div>
       ) : (
-        <div style={{ marginBottom: 24, padding: 16, background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
+        <div style={{ marginBottom: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 8, textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)' }}>
           <Text type="secondary">Login to write a review</Text>
         </div>
       )}

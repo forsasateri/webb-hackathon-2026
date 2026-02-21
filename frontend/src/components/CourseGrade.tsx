@@ -33,10 +33,10 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
 
   return (
     <div style={{ textAlign: 'center', marginTop: '40px' }}>
-      <Title level={2}>My Grades</Title>
+      <Title level={2} style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>My Grades</Title>
 
       {completedCourses.length === 0 ? (
-        <Typography.Paragraph style={{ fontSize: '16px', marginTop: '20px', color: '#999' }}>
+        <Typography.Paragraph style={{ fontSize: '16px', marginTop: '20px', color: 'var(--text-muted)' }}>
           No completed courses yet. Complete your enrolled courses to see grades here.
         </Typography.Paragraph>
       ) : (
@@ -60,7 +60,7 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
               </Title>
               <p><strong>Numeric Score:</strong> {selectedEntry.score}/100</p>
               <p><strong>Swedish Grade:</strong> {convertToSwedishGrade(selectedEntry.score)}</p>
-              <p style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>
                 Grading scale: 0-49=U, 50-69=3, 70-84=4, 85-100=5
               </p>
             </Card>

@@ -42,16 +42,20 @@ export const BattleCard = ({ course, onSelect, isWinner, disabled }: BattleCardP
     <Card
       hoverable={!disabled}
       onClick={() => !disabled && onSelect(course)}
+      className="card-hover-lift"
       style={{
         width: 340,
         cursor: disabled ? 'default' : 'pointer',
-        border: isWinner ? `3px solid #52c41a` : `2px solid ${accentColor}`,
+        border: isWinner
+          ? '2px solid #39ff14'
+          : `2px solid ${accentColor}`,
         borderRadius: 12,
         transition: 'all 0.3s ease',
         transform: disabled ? 'none' : undefined,
         boxShadow: isWinner
-          ? '0 4px 20px rgba(82, 196, 26, 0.3)'
-          : '0 2px 10px rgba(0,0,0,0.08)',
+          ? `0 0 20px rgba(57, 255, 20, 0.3), 0 4px 20px rgba(0,0,0,0.4)`
+          : `0 0 12px ${accentColor}33, 0 4px 20px rgba(0,0,0,0.3)`,
+        background: 'var(--bg-card)',
       }}
       styles={{
         header: {
@@ -133,13 +137,18 @@ export const BattleCard = ({ course, onSelect, isWinner, disabled }: BattleCardP
             type="primary"
             block
             size="middle"
-            style={{ marginTop: 4, background: accentColor, borderColor: accentColor }}
+            style={{
+              marginTop: 4,
+              background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
+              borderColor: accentColor,
+              boxShadow: `0 0 12px ${accentColor}44`,
+            }}
             onClick={(e) => {
               e.stopPropagation();
               onSelect(course);
             }}
           >
-            I pick this one!
+            ⚡ I pick this one!
           </Button>
         )}
       </Space>

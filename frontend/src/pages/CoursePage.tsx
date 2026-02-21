@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getCourseById } from '../api';
 import { getSchedule, enrollInCourse, dropCourse } from '../api/enrollment';
+import confetti from 'canvas-confetti';
 import type { Course } from '../types';
 import { LoadingSpinner, CourseDetail, NotFound } from '../components';
 import { ReviewSection } from '../components/ReviewSection';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { useAuth } from '../context/AuthContext';
-import { message, Layout } from 'antd';
-
-const { Content } = Layout;
+import { message } from 'antd';
 
 export const CoursePage = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +63,7 @@ export const CoursePage = () => {
       try {
         await enrollInCourse(course.id);
         message.success('Successfully enrolled!');
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#00f0ff', '#b026ff', '#ffd700'] });
         setEnrolled(true);
       } catch (err: any) {
         if (err.status === 409) {

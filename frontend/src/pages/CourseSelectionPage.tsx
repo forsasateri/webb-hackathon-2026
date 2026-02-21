@@ -27,8 +27,8 @@ export const CourseSelectionPage = () => {
   return (
     <Content style={{ padding: '50px' }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <Title level={2} style={{ textAlign: 'center' }}>Course Selection Wheel</Title>
-        <Paragraph style={{ textAlign: 'center', fontSize: '16px', marginBottom: '40px' }}>
+        <Title level={2} style={{ textAlign: 'center', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>Course Selection Wheel</Title>
+        <Paragraph style={{ textAlign: 'center', fontSize: '16px', marginBottom: '40px', color: 'var(--text-secondary)' }}>
           Feeling adventurous? Let fate decide your next course! Spin the wheel and see which course you get.
         </Paragraph>
         <CourseRoulette courses={courses} />

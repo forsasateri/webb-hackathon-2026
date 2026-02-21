@@ -1,4 +1,4 @@
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Course } from "../../types";
 import { TierCategory } from "./TierCategory";
 
@@ -11,7 +11,6 @@ interface TierlistProps {
 // For each course the user will add them to a tier
 export const Tierlist = ({ courses }: TierlistProps) => {
 
-    const [coursesToGrade, setCoursesToGrade] = useState<Course[]>(courses);
     const [tiers, setTiers] = useState<{ [key: string]: Course[] }>({
         S: [],
         A: [],

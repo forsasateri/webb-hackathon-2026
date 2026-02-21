@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAllCourses } from '../api';
 import { getSchedule, enrollInCourse, dropCourse } from '../api/enrollment';
+import confetti from 'canvas-confetti';
 import type { Course } from '../types';
 import { LoadingSpinner, CourseList } from '../components';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ export const AllCoursesPage = () => {
     try {
       await enrollInCourse(id);
       message.success('Successfully enrolled!');
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#00f0ff', '#b026ff', '#ffd700'] });
       setEnrolledIds(prev => new Set(prev).add(id));
     } catch (err: any) {
       if (err.status === 409) {

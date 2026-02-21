@@ -789,12 +789,70 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
  └──→ P6 (六边形雷达图可视化)  ← 依赖 P3 的评价系统和后端的 P5
        │
        ▼
+      P7 (Hackathon Wow Factor 视觉大升级)
+       │
+       ▼
       P5 (Demo 准备)
 ```
 
 **最小可演示版本 = P1 + P2 完成后（约 5h）**：用户能 登录→浏览→选课→退课→看课表。
 
-**完整功能版本 = P1-P4, P6 全部完成后（约 14h）**：加上评价、推荐、Tier List 数据化、筛选、课表网格、六边形雷达图。
+**完整功能版本 = P1-P4, P6, P7 全部完成后（约 18h）**：加上评价、推荐、Tier List 数据化、筛选、课表网格、六边形雷达图，以及极致的赛博朋克视觉与动效。
+
+---
+
+## P7: Hackathon Wow Factor (视觉与交互大升级 - Hackathon Champion Edition)
+
+> **目标**：以“世界上最擅长黑客马拉松的人”的视角，对当前较为平淡的前端进行视觉和交互的降维打击。黑客马拉松的评委通常只有 2-3 分钟看你的项目，前 10 秒的“Wow Factor”决定了生死。我们需要引入赛博朋克/暗黑霓虹美学、微交互、游戏化动效和彩蛋，让整个页面极具抓人眼球的张力。
+
+### 任务列表
+
+#### P7-1: 全局暗黑霓虹主题 (Dark Neon Theme)
+```
+文件: src/index.css, src/App.tsx
+改动要点:
+  1. 抛弃平淡的白色/浅蓝背景，改为深邃的暗色背景（如 `#0f172a` 或 `#000000`）。
+  2. 引入高饱和度的霓虹强调色（Cyan `#00f3ff`, Magenta `#ff003c`, Electric Purple `#b026ff`）。
+  3. 全局字体升级：标题使用极具未来感的字体（如 `Orbitron` 或 `Space Grotesk`），正文保持高可读性的无衬线字体（如 `Inter`）。
+  4. 卡片和容器增加发光边框（Glow Effects）和毛玻璃效果（Glassmorphism）。
+```
+
+#### P7-2: 页面级丝滑过渡与微交互 (Framer Motion)
+```
+文件: src/App.tsx, 各个 Page 组件
+改动要点:
+  1. 引入 `framer-motion` 库。
+  2. 路由切换时增加丝滑的淡入淡出或滑动过渡效果（Page Transitions）。
+  3. 列表渲染（如 CourseList）增加交错动画（Staggered Fade-in），让卡片一张张“飞”进来。
+  4. 按钮和卡片增加 Hover 态的物理反馈（轻微放大、阴影加深、边框发光）。
+```
+
+#### P7-3: 核心趣味功能的“游戏化”视觉重塑 (Gamification UI)
+```
+文件: src/pages/CourseBattlePage.tsx, src/components/rouletteSelection/CourseRoulette.tsx
+改动要点:
+  1. **Course Battle**: 彻底做成格斗游戏选人界面的感觉。中间加上巨大的、带闪烁动画的 "VS" 字样。选中某门课时，增加“击碎”另一门课的粒子特效或震动反馈。
+  2. **Roulette**: 增加赌场风格的跑马灯边框，转动时配合音效（可选）和屏幕震动，抽中时全屏撒花（Confetti）。
+  3. **Tier List**: 视觉上模仿《任天堂明星大乱斗》的 Tier List，S 级用耀眼的金色/红色，F 级用暗淡的灰色。
+```
+
+#### P7-4: 首页第一印象的降维打击 (Hero Section)
+```
+文件: src/pages/HomePage.tsx
+改动要点:
+  1. 首页头部（Hero Section）引入动态背景（如 Three.js 粒子网格、流体渐变动画，或简单的 CSS 动态网格线）。
+  2. 巨大的、带打字机效果（Typewriter effect）或故障艺术（Glitch effect）的 Slogan："Survive LISAM. Choose Your Destiny."
+  3. 核心 CTA（Call to Action）按钮做成呼吸灯效果，吸引用户立刻点击进入选课。
+```
+
+#### P7-5: 惊喜彩蛋与细节 (Easter Eggs)
+```
+文件: 全局
+改动要点:
+  1. **Panic Button 升级**: 点击后不仅弹借口，屏幕还可以闪烁红光，或者触发警报动画。
+  2. **加载状态**: 抛弃普通的 Spinner，改为极客风的终端代码滚动动画，或带有霓虹光晕的自定义 Loader。
+  3. **选课成功反馈**: 选课成功时，不仅有 message，还可以有微小的粒子爆炸效果（如 `canvas-confetti`），强化“获得感”。
+```
 
 ---
 

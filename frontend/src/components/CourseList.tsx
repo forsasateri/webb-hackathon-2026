@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Layout, Typography, Row, Col, Pagination } from 'antd';
+import { motion } from 'framer-motion';
 import type { Course } from '../types';
 import { CourseCard } from './CourseCard';
 
@@ -24,17 +25,27 @@ export const CourseList = ({ courses, title = 'All Available Courses', onEnroll,
   return (
     <Content style={{ padding: '50px' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <Title level={2} style={{ marginBottom: '30px' }}>
+        <Title level={2} style={{
+          marginBottom: '30px',
+          fontFamily: "var(--font-display, 'Orbitron', monospace)",
+          letterSpacing: '0.03em',
+        }}>
           {title}
         </Title>
         <Row gutter={[16, 16]}>
-          {paginatedCourses.map((course) => (
+          {paginatedCourses.map((course, index) => (
             <Col xs={24} sm={24} md={12} lg={8} key={course.id}>
-              <CourseCard 
-              course={course} 
-              onEnroll={onEnroll}
-              onDrop={onDrop}
-              />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }}
+              >
+                <CourseCard 
+                  course={course} 
+                  onEnroll={onEnroll}
+                  onDrop={onDrop}
+                />
+              </motion.div>
             </Col>
           ))}
         </Row>

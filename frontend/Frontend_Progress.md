@@ -69,7 +69,128 @@
 | P3 评价+推荐+趣味增强 | ✅ 完成 | 评价 CRUD、推荐展示、转盘接通后端、Course Battle |
 | P4 数据驱动+体验打磨 | 🔄 部分完成 | AllCoursesPage 分页、CourseCard 雷达图 (Tier List 数据化、筛选、课表网格待做) |
 | P6 六边形雷达图可视化 | ✅ 完成 | CourseRadarChart 组件、BattleCard + CourseCard 均集成雷达图 |
+| P7 Hackathon Wow Factor | ✅ 完成 | 赛博朋克暗黑主题、Framer Motion 动效、游戏化 UI、首页动态背景、彩蛋特效 |
 | P5 Demo 准备 | ⬜ 未开始 | 错误边界、UI 一致性、Demo 走查 |
+
+---
+
+## P7: Hackathon Wow Factor (视觉与交互大升级) ✅ 已完成
+
+> **目标**: 引入赛博朋克/暗黑霓虹美学、微交互、游戏化动效和彩蛋，让整个页面极具抓人眼球的张力，打造 Hackathon 冠军级别的视觉体验。
+
+### 完成任务
+
+#### P7-1: 全局暗黑霓虹主题 ✅
+- **文件**: `src/index.css`（完全重写）
+- **改动**:
+  - CSS 自定义属性体系: `--neon-cyan`, `--neon-magenta`, `--bg-primary`, `--bg-card`, `--text-primary` 等
+  - Google Fonts: Orbitron（标题/显示）+ Inter（正文）
+  - 深色背景 `#0a0e1a`，毛玻璃卡片 `rgba(17,24,39,0.65)` + `backdrop-filter: blur(16px)`
+  - 全面覆盖 Ant Design 暗黑样式（Menu, Card, Button, Input, Modal, Tabs, Pagination, Select, Tag, Progress, Rate, Empty 等）
+  - 霓虹发光边框、hover 悬浮效果、渐变按钮
+- **涉及组件的内联样式更新**:
+  - `Navbar.tsx`: 暗色玻璃头部 + 青色 Logo 发光
+  - `LoginPage.tsx`: Orbitron 标题 + 青色 Dev Login
+  - `CourseCard.tsx`: 暗色文字变量 + 绿色已注册标记
+  - `CourseDetail.tsx`: Orbitron 标题 + 金色评分发光 + 呼吸灯注册按钮
+  - `CourseList.tsx`: Orbitron 标题
+  - `BattleCard.tsx`: 暗色卡片背景 + 霓虹边框 + 渐变选择按钮
+  - `ReviewCard.tsx`: CSS 变量文字颜色
+  - `ReviewSection.tsx`: 暗色表单背景
+  - `RecommendationSection.tsx`: 依赖全局 Ant Design 覆盖
+  - `CourseGrade.tsx`: Orbitron 标题 + CSS 变量颜色
+  - `CourseRadarChart.tsx`: 暗色雷达图（青色线条/网格、暗色 tooltip）
+  - `NotFound.tsx`: Orbitron 标题
+  - `CourseSelectionPage.tsx`: Orbitron 标题 + 暗色文字
+  - `DebugPage.tsx`: Orbitron 标题
+  - `SchedulePage.tsx`: 青色学分标签 + 暗色卡片
+
+#### P7-2: 页面级丝滑过渡 ✅
+- **文件**: `src/App.tsx`
+- **改动**:
+  - 新增 `AnimatedRoutes` 组件，用 `<AnimatePresence mode="wait">` + `<motion.div>` 包裹路由
+  - `pageVariants`: opacity + y 位移 + blur 滤镜过渡
+  - `pageTransition`: tween 类型，easeInOut，0.35s
+  - 背景添加 `cyber-grid-bg` 动画网格
+  - 主要内容区域使用毛玻璃容器 + 青色边框发光
+- **列表动画**: `CourseList.tsx`, `SchedulePage.tsx` — 每张卡片交错 fade-in（delay = index × 0.05s）
+- **Hover 物理反馈**: `CourseCard.tsx` — `motion.div whileHover={{ y: -4 }}`
+
+#### P7-3: 游戏化 UI 重塑 ✅
+- **Course Battle**: `CourseBattlePage.tsx`
+  - `AnimatePresence` 卡片交换动画（左从 -50px 滑入，右从 +50px 滑入）
+  - VS 文字使用 `vs-flash` CSS 动画 + Orbitron 48px
+  - 结果阶段触发 `confetti()` 彩色粒子（#00f0ff, #ff00ff, #39ff14）
+  - 渐变进度条 `strokeColor`
+  - cyber-loader 替代 Spin 加载
+- **Roulette**: `CourseRoulette.tsx`
+  - `roulette-frame` 霓虹跑马灯边框（conic-gradient 动画旋转）
+  - 成功选课后触发 `confetti()`
+  - Orbitron 标题 + 呼吸灯生成按钮
+- **Tier List**: `TierCategory.tsx`
+  - 各等级霓虹发光: S(金), A(绿), B(青), C(蓝), D(紫), E(橙), F(红)
+  - Orbitron 字体等级标签
+  - 暗色边框和背景
+
+#### P7-4: 首页降维打击 ✅
+- **文件**: `src/pages/HomePage.tsx`（完全重写）
+- **改动**:
+  - 故障艺术 Slogan: `<h1 className="glitch" data-text="BETTER LISAM">` + CSS `clip-path` 抖动
+  - 赛博朋克副标题: "Survive the system. Choose your destiny."
+  - 三个 CTA 按钮: Browse Courses（青色呼吸灯）、Spin the Wheel（紫色）、Course Battle（品红）
+  - `motion.div` 交错入场动画（标题 → 副标题 0.3s → 按钮 0.5s → Panic 0.8s）
+
+#### P7-5: 惊喜彩蛋 ✅
+- **Panic Button**: `PanicButton.tsx`
+  - 品红→紫渐变按钮
+  - 触发时全屏红色闪烁 overlay (`panic-flash` 动画)
+  - Modal 使用 Orbitron 标题 + 红色发光
+- **极客风加载动画**: `LoadingSpinner.tsx`
+  - 替换 Ant Design `<Spin>` 为自定义 cyber-loader（5 根脉冲条）
+  - "Loading..." Orbitron 青色发光文字
+- **选课成功粒子爆炸**:
+  - `AllCoursesPage.tsx`: 选课成功后 `confetti()` 霓虹色彩
+  - `CoursePage.tsx`: 选课成功后 `confetti()` 霓虹色彩
+  - `CourseRoulette.tsx`: 轮盘选课成功后 `confetti()`
+  - `CourseBattlePage.tsx`: 对决冠军产生时 `confetti()`
+
+### 变更文件总览
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/index.css` | 完全重写 | 赛博朋克暗黑主题 + Ant Design 覆盖 + 动画 |
+| `src/App.tsx` | 重构 | framer-motion 页面过渡 + 毛玻璃容器 |
+| `src/pages/HomePage.tsx` | 完全重写 | 故障艺术 + 呼吸灯 CTA + 交错动画 |
+| `src/components/Navbar.tsx` | 增强 | 暗色玻璃头部 + 霓虹 Logo |
+| `src/components/LoadingSpinner.tsx` | 完全重写 | cyber-loader 脉冲条 |
+| `src/components/PanicButton.tsx` | 增强 | 红色闪烁 overlay + 渐变按钮 |
+| `src/pages/CourseBattlePage.tsx` | 重构 | AnimatePresence + VS flash + confetti |
+| `src/components/CourseBattle/BattleCard.tsx` | 增强 | 霓虹卡片 + 渐变按钮 |
+| `src/components/CourseCard.tsx` | 增强 | motion hover + 暗色变量 |
+| `src/components/CourseList.tsx` | 增强 | 交错 fade-in 动画 |
+| `src/components/rouletteSelection/CourseRoulette.tsx` | 增强 | 霓虹跑马灯 + confetti |
+| `src/components/tierlist/TierCategory.tsx` | 增强 | 等级霓虹发光 |
+| `src/components/CourseDetail.tsx` | 增强 | motion 入场 + Orbitron + 呼吸灯 |
+| `src/components/ReviewCard.tsx` | 增强 | CSS 变量颜色 |
+| `src/components/ReviewSection.tsx` | 增强 | 暗色表单背景 |
+| `src/components/CourseGrade.tsx` | 增强 | Orbitron + CSS 变量 |
+| `src/components/CourseRadarChart.tsx` | 增强 | 暗色霓虹雷达图配色 |
+| `src/components/NotFound.tsx` | 增强 | Orbitron + primary 按钮 |
+| `src/pages/LoginPage.tsx` | 增强 | Orbitron + 青色按钮 |
+| `src/pages/SchedulePage.tsx` | 增强 | motion 交错 + 霓虹学分标签 |
+| `src/pages/AllCoursesPage.tsx` | 增强 | confetti 选课庆祝 |
+| `src/pages/CoursePage.tsx` | 增强 | confetti 选课庆祝 |
+| `src/pages/CourseSelectionPage.tsx` | 增强 | Orbitron + 暗色文字 |
+| `src/pages/DebugPage.tsx` | 增强 | Orbitron + 暗色文字 |
+
+### 依赖
+- `framer-motion` 12.34.3 — 页面过渡、交错动画、hover 反馈
+- `canvas-confetti` 1.9.4 — 粒子爆炸特效
+- Google Fonts: Orbitron + Inter（CSS @import 加载）
+
+### TypeScript 编译
+- `tsc -b` → 零错误
+- `npm run build` → 构建成功
 
 ---
 

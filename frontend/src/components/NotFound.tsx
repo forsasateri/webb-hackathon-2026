@@ -20,8 +20,8 @@ export const NotFound = ({
   return (
     <Content style={{ padding: '50px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-        <Title level={2}>{message}</Title>
-        <Button onClick={() => navigate(backToPath)}>{backToText}</Button>
+        <Title level={2} style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>{message}</Title>
+        <Button type="primary" onClick={() => navigate(backToPath)}>{backToText}</Button>
       </div>
     </Content>
   );

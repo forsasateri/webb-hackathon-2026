@@ -69,7 +69,7 @@ export const ReviewCard = ({ review, currentUserId, onDelete }: ReviewCardProps)
                     flexShrink: 0,
                   }}
                 />
-                <Text style={{ fontSize: 12, minWidth: 90, color: '#595959' }}>{d.label}</Text>
+                <Text style={{ fontSize: 12, minWidth: 90, color: 'var(--text-secondary)' }}>{d.label}</Text>
                 <Progress
                   percent={(val / 5) * 100}
                   steps={5}
@@ -78,7 +78,7 @@ export const ReviewCard = ({ review, currentUserId, onDelete }: ReviewCardProps)
                   showInfo={false}
                   style={{ margin: 0 }}
                 />
-                <Text style={{ fontSize: 12, color: '#8c8c8c', minWidth: 12 }}>{val}</Text>
+                <Text style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 12 }}>{val}</Text>
               </div>
             );
           })}

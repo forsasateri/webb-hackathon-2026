@@ -1,6 +1,7 @@
 import { Layout, Typography, Card, Button, Descriptions, Row, Col } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import type { Course } from '../types';
 import { computeOverallAvg } from '../types/course';
 import { timeSlotsToString } from '../shared';
@@ -29,8 +30,13 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
           Back to Courses
         </Button>
 
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
         <Card>
-          <Title level={2}>
+          <Title level={2} style={{ fontFamily: "var(--font-display, 'Orbitron', monospace)", letterSpacing: '0.03em' }}>
             {course.code} - {course.name}
           </Title>
 
@@ -62,7 +68,13 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Overall Rating">
-                  {overallAvg !== null ? `${overallAvg.toFixed(1)} / 5` : 'No ratings yet'}
+                  {overallAvg !== null ? (
+                    <span style={{ color: '#ffd700', textShadow: '0 0 6px rgba(255, 215, 0, 0.4)' }}>
+                      {overallAvg.toFixed(1)} / 5
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>No ratings yet</span>
+                  )}
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Description">
@@ -70,13 +82,18 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Status">
-                  {course.enrolled ? '✅ Enrolled' : 'Not Enrolled'}
+                  {course.enrolled ? (
+                    <span style={{ color: '#39ff14', textShadow: '0 0 6px rgba(57, 255, 20, 0.4)' }}>✅ Enrolled</span>
+                  ) : (
+                    'Not Enrolled'
+                  )}
                 </Descriptions.Item>
               </Descriptions>
 
               <Button
                 type={course.enrolled ? 'default' : 'primary'}
                 danger={course.enrolled}
+                className={course.enrolled ? '' : 'cta-breathing'}
                 style={{ marginTop: '24px' }}
                 onClick={() => onToggleEnroll?.(course.id)}
               >
@@ -91,6 +108,7 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
             </Col>
           </Row>
         </Card>
+        </motion.div>
       </div>
     </Content>
   );

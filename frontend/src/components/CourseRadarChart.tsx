@@ -72,32 +72,34 @@ export const CourseRadarChart = ({ data, size = 300, showTitle = true }: CourseR
       )}
       <ResponsiveContainer width="100%" height={size}>
         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-          <PolarGrid stroke="#e8e8e8" />
+          <PolarGrid stroke="rgba(0, 240, 255, 0.15)" />
           <PolarAngleAxis
             dataKey="dimension"
-            tick={{ fontSize: 11, fill: '#595959' }}
+            tick={{ fontSize: 11, fill: '#94a3b8' }}
           />
           <PolarRadiusAxis
             angle={90}
             domain={[0, 5]}
             tickCount={6}
-            tick={{ fontSize: 10, fill: '#bfbfbf' }}
+            tick={{ fontSize: 10, fill: '#64748b' }}
             axisLine={false}
           />
           <Tooltip
-            formatter={(value: number) => [value.toFixed(2), 'Avg']}
+            formatter={(value: number | undefined) => [value != null ? value.toFixed(2) : '–', 'Avg']}
             contentStyle={{
               borderRadius: 8,
-              border: '1px solid #e8e8e8',
+              border: '1px solid rgba(0, 240, 255, 0.2)',
+              background: 'rgba(17, 24, 39, 0.95)',
+              color: '#e2e8f0',
               fontSize: 12,
             }}
           />
           <Radar
             name="Rating"
             dataKey="value"
-            stroke="#1890ff"
-            fill="#1890ff"
-            fillOpacity={0.25}
+            stroke="#00f0ff"
+            fill="#00f0ff"
+            fillOpacity={0.2}
             strokeWidth={2}
           />
         </RadarChart>

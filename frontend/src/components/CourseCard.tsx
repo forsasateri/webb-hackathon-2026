@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Card, Button, Space, Tag, Typography } from 'antd';
 import { ClockCircleOutlined, CheckCircleOutlined, BookOutlined, DownOutlined, UpOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import type { Course } from '../types';
 import { computeOverallAvg, RATING_DIMENSIONS } from '../types/course';
 import { Link } from 'react-router-dom';
@@ -37,6 +38,9 @@ export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
   };
 
   return (
+    <motion.div
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+    >
     <Card
       hoverable
       title={
@@ -45,7 +49,7 @@ export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
         </Link>
       }
       extra={
-        <span>
+        <span style={{ color: 'var(--text-secondary)' }}>
           <ClockCircleOutlined /> {timeSlotsToString(course)}
         </span>
       }
@@ -103,7 +107,7 @@ export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
         )}
 
         {/* Meta info */}
-        <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted, #8c8c8c)' }}>
           <div>{course.instructor} · {course.department}</div>
         </div>
       </Space>
@@ -112,7 +116,7 @@ export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
       <Space style={{ marginTop: 8 }}>
         {course.enrolled ? (
           <>
-            <span style={{ color: '#52c41a' }}>
+            <span style={{ color: '#39ff14', textShadow: '0 0 6px rgba(57, 255, 20, 0.4)' }}>
               <CheckCircleOutlined /> Enrolled
             </span>
             {onDrop && (
@@ -144,5 +148,6 @@ export const CourseCard = ({ course, onEnroll, onDrop }: CourseCardProps) => {
         )}
       </Space>
     </Card>
+    </motion.div>
   );
 };
