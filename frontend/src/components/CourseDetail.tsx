@@ -2,14 +2,14 @@ import { Layout, Typography, Card, Button, Descriptions } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import type { Course } from '../types';
-import { getTimeSlotLabel } from '../shared';
+import { timeSlotsToString } from '../shared';
 
 const { Content } = Layout;
 const { Title } = Typography;
 
 interface CourseDetailProps {
   course: Course;
-  onToggleEnroll?: (id: string) => void;
+  onToggleEnroll?: (id: number) => void;
 }
 
 export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
@@ -28,12 +28,12 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
 
         <Card>
           <Title level={2}>
-            {course.courseCode} - {course.name}
+            {course.code} - {course.name}
           </Title>
 
           <Descriptions column={1} style={{ marginTop: '20px' }}>
             <Descriptions.Item label="Course Code">
-              {course.courseCode}
+              {course.code}
             </Descriptions.Item>
 
             <Descriptions.Item label="Course ID">
@@ -41,8 +41,7 @@ export const CourseDetail = ({ course, onToggleEnroll }: CourseDetailProps) => {
             </Descriptions.Item>
 
             <Descriptions.Item label="Time Slot">
-              <ClockCircleOutlined /> Slot {course.time_slot} (
-              {getTimeSlotLabel(course.time_slot)})
+              <ClockCircleOutlined /> Slot {timeSlotsToString(course)}
             </Descriptions.Item>
 
             <Descriptions.Item label="Description">

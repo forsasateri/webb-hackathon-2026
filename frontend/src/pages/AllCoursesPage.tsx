@@ -18,7 +18,7 @@ export const AllCoursesPage = () => {
     fetchCourses();
   }, []);
 
-  const handleDrop = (id: string) => {
+  const handleDrop = (id: number) => {
     setCourses(prev =>
       prev.map(course =>
         course.id === id

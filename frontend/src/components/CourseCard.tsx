@@ -2,11 +2,11 @@ import { Card, Button } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import type { Course } from '../types';
 import { Link } from 'react-router-dom';
-import { getTimeSlotLabel } from '../shared';
+import { timeSlotsToString } from '../shared';
 
 interface CourseCardProps {
   course: Course;
-  onDrop?: (id: string) => void;
+  onDrop?: (id: number) => void;
 }
 
 export const CourseCard = ({ course, onDrop }: CourseCardProps) => {
@@ -15,21 +15,21 @@ export const CourseCard = ({ course, onDrop }: CourseCardProps) => {
       hoverable
       title={
         <Link to={`/course/${course.id}`}>
-          <strong>{course.courseCode}</strong> - {course.name}
+          <strong>{course.code}</strong> - {course.name}
         </Link>
       }
       extra={
         <span>
-          <ClockCircleOutlined /> Slot {course.time_slot}
+          <ClockCircleOutlined /> Slot {timeSlotsToString(course)}
         </span>
       }
       style={{ marginBottom: '16px' }}
     >
       <p>{course.description}</p>
 
-      <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
+      {/* <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
         Time: {getTimeSlotLabel(course.time_slot)}
-      </p>
+      </p> */}
 
       {course.enrolled && onDrop && (
         <Button

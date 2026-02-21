@@ -17,7 +17,7 @@ const COURSE_COLORS = [
  * Always returns the same color for the same input
  */
 export const getColorForCourse = (course: Course): string => {
-  const hash = hashString(course.courseCode + course.name);
+  const hash = hashString(course.code + course.name);
   const index = hash % COURSE_COLORS.length;
   return COURSE_COLORS[index];
 };

@@ -7,8 +7,20 @@ import { CourseWheel } from './CourseWheel';
 // Filter out all courses with same time slot as the currently selected courses to prevent time conflicts. If no courses are selected, return all courses.
 const filterValidCourses = (courses: Course[], selectedCourses: Course[]) => {
   if (selectedCourses.length === 0) return courses;
-  const selectedTimeSlots = selectedCourses.map(course => course.time_slot);
-  return courses.filter(course => !selectedTimeSlots.includes(course.time_slot));
+
+  // We identify every unique time slot by period and slot
+
+  const selectedTimeSlots = new Set<string>();
+  selectedCourses.forEach(course => {
+    course.time_slots.forEach(ts => {
+      selectedTimeSlots.add(`${ts.period}-${ts.slot}`);
+    });
+  });
+
+  return courses.filter(course => {
+    return !course.time_slots.some(ts => selectedTimeSlots.has(`${ts.period}-${ts.slot}`));
+  });
+
 };
 
 interface CourseRouletteProps {
