@@ -51,7 +51,7 @@ export const GradesPage = ({ courses }: GradesPageProps) => {
         <RollTheDice
           key={selectedCourse.id}
           currentScore={selectedCourse.score}
-          courseCode={selectedCourse.courseCode}
+          courseCode={selectedCourse.code}
         />
       )}
     </div>
