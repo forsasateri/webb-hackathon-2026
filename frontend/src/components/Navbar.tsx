@@ -1,6 +1,6 @@
 import { Layout, Menu } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { HomeOutlined, BookOutlined, SelectOutlined } from '@ant-design/icons';
+import { HomeOutlined, BookOutlined, SelectOutlined, RiseOutlined } from '@ant-design/icons';
 
 const { Header } = Layout;
 
@@ -27,6 +27,11 @@ export const Navbar = () => {
       key: '/grade',
       icon: <SelectOutlined />,
       label: <Link to="/grade">Grade</Link>,
+    },
+    {
+      key: '/tiers',
+      icon: <RiseOutlined />,
+      label: <Link to="/tiers">Course Tiers</Link>,
     },
   ];
 

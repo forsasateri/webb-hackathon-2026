@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from 'antd';
 import { Navbar } from './components';
-import { HomePage, AllCoursesPage, CoursePage, CourseSelectionPage, GradePage } from './pages';
+import { HomePage, AllCoursesPage, CoursePage, CourseSelectionPage, GradePage, CourseTierListPage } from './pages';
 
 function App() {
   return (
@@ -14,6 +14,7 @@ function App() {
           <Route path="/course/:id" element={<CoursePage />} />
           <Route path="/selection" element={<CourseSelectionPage />} />
           <Route path="/grade" element={<GradePage />} />
+          <Route path="/tiers" element={<CourseTierListPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>
