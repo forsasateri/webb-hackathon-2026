@@ -682,7 +682,7 @@ UI:
 
 ```
 准备一份 Demo 流程:
-  1. 首页展示 → "Welcome to Better LISAM" + PanicButton
+  1. 首页展示 → "Welcome to CYBER LISAM" + PanicButton
   2. 登录(Dev Login) → Navbar 变化
   3. 浏览课程(/courses) → 搜索 "Machine Learning"
   4. 课程详情 → 评价区(星级+评论) + 推荐区("选了这门课的人还选了...")
@@ -719,6 +719,34 @@ UI:
 - 错误提示: 统一用 Ant Design message
 - 按钮风格: 统一 Ant Design Button
 - 响应式: 确认移动端可用（Ant Design Grid xs/sm/md/lg）
+```
+
+#### P5-4: 修复冲突信息显示 "[object Object]" 问题
+
+```
+问题描述:
+  选课时间冲突时，错误提示显示 "Time conflict: [object Object]" 
+  而不是具体的冲突课程信息。
+
+根本原因:
+  后端返回的错误结构为: { detail: { message: "...", conflicts: [...] } }
+  前端代码访问 err.data?.conflicts，实际应访问 err.data?.detail?.conflicts
+
+修复文件:
+  - src/pages/AllCoursesPage.tsx
+  - src/pages/CoursePage.tsx
+  - src/pages/CourseBattlePage.tsx
+  - src/components/rouletteSelection/CourseRoulette.tsx
+
+改动点:
+  将所有 409 错误处理中的:
+    const conflicts = err.data?.conflicts || [];
+  改为:
+    const conflicts = err.data?.detail?.conflicts || [];
+
+预期效果:
+  选课冲突时显示: 
+  "Time conflict: Period 2, Slot 1 conflicts with Advanced Programming in C++"
 ```
 
 ### P5 测试方法
