@@ -67,10 +67,29 @@
 | P1 基础设施修复 | ✅ 完成 | API 层全部可用 |
 | P2 核心选课闭环 | ✅ 完成 | 登录/注册 UI、选课接通后端、课表页 |
 | P3 评价+推荐+趣味增强 | ✅ 完成 | 评价 CRUD、推荐展示、转盘接通后端、Course Battle |
-| P4 数据驱动+体验打磨 | 🔄 部分完成 | AllCoursesPage 分页、CourseCard 雷达图 (Tier List 数据化、筛选、课表网格待做) |
+| P4 数据驱动+体验打磨 | 🔄 部分完成 | AllCoursesPage 分页、CourseCard 雷达图、AllCoursesPage 筛选 (Tier List 数据化、课表网格待做) |
 | P6 六边形雷达图可视化 | ✅ 完成 | CourseRadarChart 组件、BattleCard + CourseCard 均集成雷达图 |
 | P7 Hackathon Wow Factor | ✅ 完成 | 赛博朋克暗黑主题、Framer Motion 动效、游戏化 UI、首页动态背景、彩蛋特效 |
-| P5 Demo 准备 | ⬜ 未开始 | 错误边界、UI 一致性、Demo 走查 |
+| P5 Demo 准备 | 🔄 进行中 | 品牌统一 (Better LISAM → CYBER LISAM)、错误边界、UI 一致性、Demo 走查 |
+
+---
+
+## P5: Demo 准备 🔄 进行中
+
+### 完成任务
+
+#### P5-1: 品牌名称统一 — Better LISAM → CYBER LISAM ✅
+- **修改文件**: `src/components/Navbar.tsx`, `src/pages/HomePage.tsx`
+- **问题**: Navbar 左上角 Logo 显示 "Better LISAM"，首页主标题 glitch 动画显示 "BETTER LISAM"，与赛博朋克主题品牌 "CYBER LISAM" 不一致
+- **修复**:
+  - `Navbar.tsx`: `Better LISAM` → `CYBER LISAM`
+  - `HomePage.tsx`: `data-text="BETTER LISAM"` → `data-text="CYBER LISAM"`，正文 `BETTER LISAM` → `CYBER LISAM`
+  - `index.html` `<title>` 已为 `CYBER LISAM`，无需修改
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/components/Navbar.tsx` | 修复 | Logo 文字 Better LISAM → CYBER LISAM |
+| `src/pages/HomePage.tsx` | 修复 | 主标题 + glitch data-text → CYBER LISAM |
 
 ---
 
@@ -135,7 +154,7 @@
 #### P7-4: 首页降维打击 ✅
 - **文件**: `src/pages/HomePage.tsx`（完全重写）
 - **改动**:
-  - 故障艺术 Slogan: `<h1 className="glitch" data-text="BETTER LISAM">` + CSS `clip-path` 抖动
+  - 故障艺术 Slogan: `<h1 className="glitch" data-text="CYBER LISAM">` + CSS `clip-path` 抖动
   - 赛博朋克副标题: "Survive the system. Choose your destiny."
   - 三个 CTA 按钮: Browse Courses（青色呼吸灯）、Spin the Wheel（紫色）、Course Battle（品红）
   - `motion.div` 交错入场动画（标题 → 副标题 0.3s → 按钮 0.5s → Panic 0.8s）
@@ -423,3 +442,52 @@
 
 ### TypeScript 编译
 - `npx tsc --noEmit` → 零错误
+
+---
+
+## P4-2: AllCoursesPage 课程筛选功能 ✅ 已完成
+
+> **目标**: 根据后端 `GET /api/courses` 实际提供的筛选参数（keyword、department、credits、period、slot），在前端 AllCoursesPage 添加完整的筛选功能，筛选 UI 位于 "All Available Courses" 标题下方，与现有赛博朋克暗黑主题保持一致。
+
+### 完成任务
+
+#### P4-2-1: API 层扩展 — `getAllCourses` 支持筛选参数 ✅
+- **文件**: `src/api/courses.ts`
+- **改动**:
+  - `getAllCourses` 函数签名从 `() => Promise<Course[]>` 扩展为 `(filters?) => Promise<Course[]>`
+  - 支持 5 个可选筛选参数：`keyword`(string)、`department`(string)、`credits`(number)、`period`(number[])、`slot`(number[])
+  - 使用 `URLSearchParams` 构建查询字符串，`period` 和 `slot` 为多值参数（多次 `append`）
+  - 拼接到 `${BASE_URL}/courses?...` 发起请求
+
+#### P4-2-2: AllCoursesPage 筛选状态管理 + 防抖 ✅
+- **文件**: `src/pages/AllCoursesPage.tsx`
+- **改动**:
+  - 新增自定义 `useDebounce` hook（300ms 延迟），用于关键词搜索防抖
+  - 新增 5 个筛选状态：`keyword`、`department`、`credits`、`period`、`slot`
+  - 新增 `departments` 状态，从课程数据中动态提取不重复的院系列表并排序
+  - `useEffect` 依赖数组加入全部筛选状态，筛选条件变更时自动重新请求后端 API
+  - 筛选参数为空时不传递（`undefined`），后端返回全部课程
+
+#### P4-2-3: 筛选 UI 组件 — 嵌入 CourseList 标题下方 ✅
+- **文件**: `src/components/CourseList.tsx`、`src/pages/AllCoursesPage.tsx`
+- **改动**:
+  - `CourseList` 组件新增 `filterComponent?: React.ReactNode` prop
+  - 筛选 UI 渲染在 "All Available Courses" 标题下方、课程卡片上方（`marginBottom: 30px`）
+  - 使用 Ant Design `Row` + `Col` 布局，5 个筛选控件一行排列：
+    - **Search**（Col span=6）：`Input.Search`，placeholder "Search courses..."，实时输入 + `allowClear`
+    - **Department**（Col span=4）：`Select` 单选，placeholder "Department"，选项从课程数据动态提取，`allowClear`
+    - **Credits**（Col span=4）：`Select` 单选，placeholder "credit"，选项 6/8/12，`allowClear`
+    - **Period**（Col span=5）：`Select` 多选（`mode="multiple"`），placeholder "Period (1-8)"，选项 1-8，`allowClear`
+    - **Slot**（Col span=5）：`Select` 多选（`mode="multiple"`），placeholder "Slot (1-4)"，选项 1-4，`allowClear`
+  - 筛选控件背景色与页面背景一致（白色 `#ffffff`），融入现有赛博朋克主题
+
+### 变更文件总览
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/api/courses.ts` | 增强 | `getAllCourses` 支持 5 个可选筛选参数，URLSearchParams 构建查询字符串 |
+| `src/pages/AllCoursesPage.tsx` | 增强 | 筛选状态管理 + useDebounce hook + 筛选 UI 通过 filterComponent 传入 CourseList |
+| `src/components/CourseList.tsx` | 增强 | 新增 `filterComponent` prop，渲染在标题下方 |
+
+### TypeScript 编译
+- 零错误

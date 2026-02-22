@@ -1,4 +1,4 @@
-import { Card, Typography, Select } from 'antd';
+import { Card, Typography, Select, Button } from 'antd';
 import { useState } from 'react';
 import type { ScheduleEntry } from '../api/enrollment';
 import { RollTheDice } from './rollTheDice';
@@ -29,6 +29,7 @@ export const GradesPage = ({ scheduleEntries, onScheduleChanged }: GradesPagePro
   const selectWidth = 'min(560px, calc(100vw - 32px))';
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showDiceGame, setShowDiceGame] = useState(false);
 
   const selectedEntry = completedCourses.find(
     (entry) => entry.course.id === selectedId
@@ -40,6 +41,11 @@ export const GradesPage = ({ scheduleEntries, onScheduleChanged }: GradesPagePro
     ? (selectedEntry.dice_summary?.original_score ?? currentScore)
     : null;
   const currentGrade = convertToGrade(currentScore);
+
+  const handleCourseChange = (value: number) => {
+    setSelectedId(value);
+    setShowDiceGame(false); // Hide dice game when course changes
+  };
 
   return (
     <div style={{ textAlign: 'center', marginTop: '40px', paddingBottom: '32px' }}>
@@ -54,7 +60,7 @@ export const GradesPage = ({ scheduleEntries, onScheduleChanged }: GradesPagePro
           <Select
             style={{ width: selectWidth }}
             placeholder="Select a completed course"
-            onChange={(value) => setSelectedId(value)}
+            onChange={handleCourseChange}
           >
             {completedCourses.map((entry) => (
               <Option key={entry.course.id} value={entry.course.id}>
@@ -88,8 +94,19 @@ export const GradesPage = ({ scheduleEntries, onScheduleChanged }: GradesPagePro
             </Card>
           )}
 
+          {/* "I'm Feeling Lucky" Button */}
+          {selectedEntry && !showDiceGame && (
+            <Button
+              type="default"
+              style={{ marginTop: '20px' }}
+              onClick={() => setShowDiceGame(true)}
+            >
+              I'm Feeling Lucky
+            </Button>
+          )}
+
           {/* Dice Game Integration */}
-          {selectedEntry && currentScore !== null && (
+          {selectedEntry && currentScore !== null && showDiceGame && (
             <RollTheDice
               key={selectedEntry.course.id}
               courseId={selectedEntry.course.id}

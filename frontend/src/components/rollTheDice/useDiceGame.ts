@@ -136,8 +136,8 @@ export function useDiceGame(
     gameRefs.liveValues = [...values];
 
     const numericTotal = values.reduce((sum, value) => sum + scoreValue(value), 0);
-    const averageFloor = Math.floor(numericTotal / DICE_COUNT);
-    const averageLabel = scoreToGrade(averageFloor);
+    const averageRounded = Math.round(numericTotal / DICE_COUNT);
+    const averageLabel = scoreToGrade(averageRounded);
 
     setLiveValues(values);
     setCurrentAverage(averageLabel);
@@ -150,7 +150,7 @@ export function useDiceGame(
       onRollComplete({
         diceValues: values,
         total: numericTotal,
-        average: averageFloor,
+        average: averageRounded,
         grade: averageLabel
       });
     }
@@ -179,8 +179,8 @@ export function useDiceGame(
     }
 
     const numericTotal = gameRefs.liveValues.reduce((sum, value) => sum + scoreValue(value), 0);
-    const averageFloor = Math.floor(numericTotal / DICE_COUNT);
-    const averageLabel = scoreToGrade(averageFloor);
+    const averageRounded = Math.round(numericTotal / DICE_COUNT);
+    const averageLabel = scoreToGrade(averageRounded);
 
     setLiveValues([...gameRefs.liveValues]);
     setCurrentAverage(averageLabel);

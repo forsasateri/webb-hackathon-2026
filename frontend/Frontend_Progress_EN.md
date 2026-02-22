@@ -67,10 +67,59 @@ Test Script: `frontend/test_frontend.sh` — **15/15 Passed**
 | P1 Infrastructure Fixes | ✅ Completed | API layer fully usable |
 | P2 Core Enrollment Loop | ✅ Completed | Login/Register UI, Enrollment connected to backend, Schedule page |
 | P3 Reviews + Recommendations + Fun Features | ✅ Completed | Reviews CRUD, Recommendations display, Roulette connected to backend, Course Battle |
-| P4 Data Driven + Experience Polish | 🔄 Partial | AllCoursesPage Pagination, CourseCard Radar Chart (Tier List data-driven, filtering, schedule grid pending) |
+| P4 Data Driven + Experience Polish | 🔄 Partial | AllCoursesPage Pagination, CourseCard Radar Chart, AllCoursesPage Filtering (Tier List data-driven, schedule grid pending) |
 | P6 Hexagon Radar Chart Visualization | ✅ Completed | CourseRadarChart component, BattleCard + CourseCard integrated with radar chart |
 | P7 Hackathon Wow Factor | ✅ Completed | Cyberpunk dark theme, Framer Motion effects, Gamified UI, Home page dynamic background, Easter eggs |
 | P5 Demo Preparation | ⬜ Not Started | Error boundaries, UI consistency, Demo walkthrough |
+
+---
+
+## P4-2: AllCoursesPage Course Filtering ✅ Completed
+
+> **Goal**: Based on the backend `GET /api/courses` actual filter parameters (keyword, department, credits, period, slot), add complete filtering functionality to the frontend AllCoursesPage. Filter UI is placed below the "All Available Courses" title, consistent with the existing Cyberpunk dark theme.
+
+### Completed Tasks
+
+#### P4-2-1: API Layer Extension — `getAllCourses` with Filter Parameters ✅
+- **File**: `src/api/courses.ts`
+- **Changes**:
+  - `getAllCourses` signature extended from `() => Promise<Course[]>` to `(filters?) => Promise<Course[]>`
+  - Supports 5 optional filter parameters: `keyword`(string), `department`(string), `credits`(number), `period`(number[]), `slot`(number[])
+  - Uses `URLSearchParams` to build query string; `period` and `slot` are multi-value params (multiple `append` calls)
+  - Appended to `${BASE_URL}/courses?...` for the request
+
+#### P4-2-2: AllCoursesPage Filter State Management + Debounce ✅
+- **File**: `src/pages/AllCoursesPage.tsx`
+- **Changes**:
+  - Added custom `useDebounce` hook (300ms delay) for keyword search debouncing
+  - Added 5 filter states: `keyword`, `department`, `credits`, `period`, `slot`
+  - Added `departments` state, dynamically extracted from course data as sorted unique department list
+  - `useEffect` dependency array includes all filter states; filter changes automatically re-fetch from backend API
+  - Empty filter parameters are not sent (`undefined`), backend returns all courses
+
+#### P4-2-3: Filter UI Components — Embedded Below CourseList Title ✅
+- **Files**: `src/components/CourseList.tsx`, `src/pages/AllCoursesPage.tsx`
+- **Changes**:
+  - `CourseList` component added `filterComponent?: React.ReactNode` prop
+  - Filter UI renders below "All Available Courses" title and above course cards (`marginBottom: 30px`)
+  - Uses Ant Design `Row` + `Col` layout, 5 filter controls in one row:
+    - **Search** (Col span=6): `Input.Search`, placeholder "Search courses...", real-time input + `allowClear`
+    - **Department** (Col span=4): `Select` single-select, placeholder "Department", options dynamically extracted from course data, `allowClear`
+    - **Credits** (Col span=4): `Select` single-select, placeholder "credit", options 6/8/12, `allowClear`
+    - **Period** (Col span=5): `Select` multi-select (`mode="multiple"`), placeholder "Period (1-8)", options 1-8, `allowClear`
+    - **Slot** (Col span=5): `Select` multi-select (`mode="multiple"`), placeholder "Slot (1-4)", options 1-4, `allowClear`
+  - Filter controls background color matches page background (white `#ffffff`), blending with existing Cyberpunk theme
+
+### File Change Overview
+
+| File | Change Type | Description |
+|------|-------------|-------------|
+| `src/api/courses.ts` | Enhance | `getAllCourses` supports 5 optional filter params, URLSearchParams query string |
+| `src/pages/AllCoursesPage.tsx` | Enhance | Filter state management + useDebounce hook + filter UI via filterComponent prop |
+| `src/components/CourseList.tsx` | Enhance | Added `filterComponent` prop, rendered below title |
+
+### TypeScript Compilation
+- Zero errors
 
 ---
 

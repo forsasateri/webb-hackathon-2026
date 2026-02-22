@@ -429,29 +429,67 @@ Navbar 新增:
     6. 如果 score 为 null（未完成课程）→ 显示 "In Progress"
 ```
 
-#### P3-5: 趣味选课：课程二选一对决 (Course Battle)
+#### P3-5: 趣味选课：Course Tinder (原 Course Battle)
 
 ```
-新建文件: src/pages/CourseBattlePage.tsx + src/components/CourseBattle/BattleCard.tsx
-路由: /battle
+新建文件: src/pages/CourseTinderPage.tsx + src/components/CourseTinder/TinderCard.tsx
+路由: /tinder
 
 改动要点:
-  新增一种类似 Tinder/对决 的趣味选课方式:
-  1. 初始状态: 随机从课程列表中选出两门课程展示在左右两张卡片上。
-  2. 交互: 用户点击选择其中一张更喜欢的课程（胜者）。
-  3. 推荐补充: 
+  1. 核心玩法: 每次展示两门课程（左vs右），用户点击选择更喜欢的一门。
+  2. 视觉特效（关键）:
+     - 当用户点击"胜者"课程时，该卡片会产生一个冲击动画。
+     - "败者"课程卡片会触发"碎裂"特效（Shatter Effect），仿佛被胜者击碎。
+     - 碎裂后，碎片散落消失，新的挑战者课程从该位置浮现。
+  3. 推荐逻辑 (保持不变): 
      - 淘汰未被选中的课程。
      - 调用 getCourseRecommendations(胜者课程ID) 获取与胜者相似的推荐课程。
-     - 从推荐列表中选出一门未出现过的课程，作为新的挑战者，补充到空缺的卡片位置。
-     - 如果推荐列表为空或已耗尽，则随机补充一门新课程。
-  4. 轮次机制: 设定一个总轮次（例如 5 轮或 10 轮）。
-  5. 最终结果: 达到指定轮次后，最后留下的课程即为"用户最喜欢的课程"。
+     - 从推荐列表中选出新挑战者补充空位。
+  4. 轮次机制: 设定 5-10 轮。
+  5. 最终结果: 胜出的课程提供 "Enroll Now" 按钮。
   6. 选课操作: 结果页展示最终胜出的课程，并提供 "Enroll Now" 按钮，点击后调用 enrollInCourse(courseId)。
-     - 成功 → message.success
-     - 冲突 → 提示冲突信息
+      - 成功 → message.success
+      - 冲突 → 提示冲突信息
+
+开发步骤:
+  1. 创建基础布局: 左右两栏展示 CourseCard。
+  2. 实现点击逻辑: 记录胜者/败者。
+  3. 集成 `framer-motion` 或 `react-particles` 实现碎裂特效:
+     - 方案 A (简单): CSS clip-path 动画将卡片分裂。
+     - 方案 B (高级): 使用 html2canvas 将卡片截图，然后用粒子库炸开。
+  4. 接入后端 API: getCourseRecommendations。
+
+碎裂特效实现:
+  新建文件: src/components/CourseBattle/ShatterEffect.tsx
+  - ShatterEffect 组件: 18 个 framer-motion 碎片粒子，随机形状(clip-path)，
+    从卡片中心位置向对应方向飞散 + 旋转 + 缩小 + 淡出
+  - ShockwaveEffect 组件: 圆环冲击波从碎裂中心扩散
+  - CSS battle-screen-shake: 屏幕震动动画 (0.45s)
+  - CSS battle-winner-pulse: 胜者卡片绿色发光脉冲 (0.6s)
+
+⚠️ 已修复 BUG — 被击碎卡片的"闪退"问题:
+  根因: 败者卡片同时触发了三重动画叠加:
+    1) Framer Motion animate: destroyedSide 触发 brightness(2) 白闪 + scale(0.5) 缩小
+    2) AnimatePresence exit: key 切换时的 exit 动画(位移 + 缩小)再次触发
+    3) ShatterEffect: 碎片粒子飞散（预期的唯一退场动画）
+  三者叠加导致卡片先"闪白"再"滑出"最后碎裂，视觉上产生明显的闪退感。
+  
+  修复:
+    - 移除 brightness(2)/saturate(0)/scale(0.5) 的 animate 效果
+      → 被击碎的卡片使用 duration: 0.05 瞬间隐藏，不做过渡
+    - exit 动画简化为 { opacity: 0 }，不再有位移和缩放
+    - AnimatePresence mode 从 "wait" 改为 "popLayout"
+      → 新挑战者不再等待旧卡片的 exit 动画完成才进场
+    - ShatterEffect 成为败者卡片的唯一视觉退场效果
+
+测试计划:
+  1. 视觉: 确认未选中的卡片确实有碎裂/消失动画，而不是瞬间消失。
+     确认无闪退/闪白 — 卡片应直接碎裂，不出现 brightness 闪烁。
+  2. 数据: 确认新出现的课程是基于胜者的推荐结果（Network 面板检查 API 调用）。
+  3. 流程: 完成 5 轮后能正常看到结果页并选课。
 
 Navbar 新增:
-  - "Course Battle" 菜单项（趣味选课入口）
+  - "Course Tinder" 菜单项
 ```
 
 ### P3 测试方法
@@ -493,12 +531,12 @@ Navbar 新增:
   3. 仅显示 finished_status=true 的课程（如有 seed 数据）
   4. 骰子游戏仍可玩
 
-流程 5 — 课程二选一对决 (Course Battle):
-  1. 登录 → 访问 /battle
+流程 5 — Course Tinder (原 Battle):
+  1. 登录 → 访问 /tinder
   2. 页面展示两门初始课程卡片。
-  3. 点击选择其中一门，另一门被替换为新课程。
+  3. 点击选择其中一门，另一门会触发"碎裂"特效并消失，新课程浮现。
   4. Network 确认调用了 GET /api/courses/{id}/recommend 获取推荐。
-  5. 连续选择达到设定轮次（如 5 轮）。
+  5. 连续选择达到设定轮次（如 5-10 轮）。
   6. 页面展示最终胜出的课程，并显示 "Enroll Now" 按钮。
   7. 点击 Enroll → Network POST /api/schedule/enroll → 200 → message.success。
 
@@ -644,7 +682,7 @@ UI:
 
 ```
 准备一份 Demo 流程:
-  1. 首页展示 → "Welcome to Better LISAM" + PanicButton
+  1. 首页展示 → "Welcome to CYBER LISAM" + PanicButton
   2. 登录(Dev Login) → Navbar 变化
   3. 浏览课程(/courses) → 搜索 "Machine Learning"
   4. 课程详情 → 评价区(星级+评论) + 推荐区("选了这门课的人还选了...")
@@ -681,6 +719,34 @@ UI:
 - 错误提示: 统一用 Ant Design message
 - 按钮风格: 统一 Ant Design Button
 - 响应式: 确认移动端可用（Ant Design Grid xs/sm/md/lg）
+```
+
+#### P5-4: 修复冲突信息显示 "[object Object]" 问题
+
+```
+问题描述:
+  选课时间冲突时，错误提示显示 "Time conflict: [object Object]" 
+  而不是具体的冲突课程信息。
+
+根本原因:
+  后端返回的错误结构为: { detail: { message: "...", conflicts: [...] } }
+  前端代码访问 err.data?.conflicts，实际应访问 err.data?.detail?.conflicts
+
+修复文件:
+  - src/pages/AllCoursesPage.tsx
+  - src/pages/CoursePage.tsx
+  - src/pages/CourseBattlePage.tsx
+  - src/components/rouletteSelection/CourseRoulette.tsx
+
+改动点:
+  将所有 409 错误处理中的:
+    const conflicts = err.data?.conflicts || [];
+  改为:
+    const conflicts = err.data?.detail?.conflicts || [];
+
+预期效果:
+  选课冲突时显示: 
+  "Time conflict: Period 2, Slot 1 conflicts with Advanced Programming in C++"
 ```
 
 ### P5 测试方法
@@ -829,9 +895,9 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 
 #### P7-3: 核心趣味功能的“游戏化”视觉重塑 (Gamification UI)
 ```
-文件: src/pages/CourseBattlePage.tsx, src/components/rouletteSelection/CourseRoulette.tsx
+文件: src/pages/CourseTinderPage.tsx, src/components/rouletteSelection/CourseRoulette.tsx
 改动要点:
-  1. **Course Battle**: 彻底做成格斗游戏选人界面的感觉。中间加上巨大的、带闪烁动画的 "VS" 字样。选中某门课时，增加“击碎”另一门课的粒子特效或震动反馈。
+  1. **Course Tinder (原 Battle)**: 彻底做成电子游戏对决风格。屏幕出现巨大的 "VS" 上浮字样。选中某门课时，失败的卡片瞬间被"粉碎"（Shatter/Expolsion effect），像素碎片向四周炸开，伴随屏幕震动和冲击波（Shockwave）。
   2. **Roulette**: 增加赌场风格的跑马灯边框，转动时配合音效（可选）和屏幕震动，抽中时全屏撒花（Confetti）。
   3. **Tier List**: 视觉上模仿《任天堂明星大乱斗》的 Tier List，S 级用耀眼的金色/红色，F 级用暗淡的灰色。
 ```
@@ -862,7 +928,7 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 |------|----------|----------|
 | P1 | — | api/auth.ts, api/index.ts, api/courses.ts, api/enrollment.ts |
 | P2 | context/AuthContext.tsx, pages/LoginPage.tsx, pages/SchedulePage.tsx, types/course.ts(扩展) | App.tsx, Navbar.tsx, AllCoursesPage.tsx, CoursePage.tsx, CourseCard.tsx, CourseDetail.tsx |
-| P3 | components/ReviewSection.tsx, components/ReviewCard.tsx, components/RecommendationSection.tsx, pages/CourseBattlePage.tsx, components/CourseBattle/BattleCard.tsx | CoursePage.tsx, CourseRoulette.tsx, GradePage.tsx, CourseGrade.tsx, App.tsx, Navbar.tsx |
+| P3 | components/ReviewSection.tsx, components/ReviewCard.tsx, components/RecommendationSection.tsx, pages/CourseTinderPage.tsx, components/CourseTinder/TinderCard.tsx | CoursePage.tsx, CourseRoulette.tsx, GradePage.tsx, CourseGrade.tsx, App.tsx, Navbar.tsx |
 | P4 | components/ScheduleGrid.tsx, context/ScheduleContext.tsx | Tierlist.tsx, AllCoursesPage.tsx, DebugPage.tsx |
 | P6 | components/CourseRadarChart.tsx | types/course.ts, CourseDetail.tsx, ReviewSection.tsx, ReviewCard.tsx |
 | P5 | — | 全站 Bug 修复 |
@@ -879,12 +945,12 @@ P2 (核心选课闭环)  ←── 这是 Demo 最小可展示版本
 | POST `/api/auth/register` | LoginPage（注册 Tab） |
 | POST `/api/auth/login` | LoginPage（登录 Tab + Dev Login） |
 | GET `/api/auth/me` | AuthContext（初始化已登录用户） |
-| POST `/api/schedule/enroll/{id}` | CoursePage, CourseRoulette, DebugPage |
+| POST `/api/schedule/enroll/{id}` | CoursePage, CourseRoulette, DebugPage, CourseTinderPage |
 | DELETE `/api/schedule/drop/{id}` | CoursePage, SchedulePage |
 | GET `/api/schedule` | SchedulePage, GradePage, AuthContext/ScheduleContext |
 | GET `/api/courses/{id}/reviews` | CoursePage → ReviewSection |
 | POST `/api/courses/{id}/reviews` | CoursePage → ReviewSection |
 | DELETE `/api/reviews/{id}` | CoursePage → ReviewSection |
-| GET `/api/courses/{id}/recommend` | CoursePage → RecommendationSection, CourseBattlePage |
+| GET `/api/courses/{id}/recommend` | CoursePage → RecommendationSection, CourseTinderPage |
 
 **13/13 端点全部有前端调用点 ✅**

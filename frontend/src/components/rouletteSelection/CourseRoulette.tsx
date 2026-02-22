@@ -114,7 +114,7 @@ export const CourseRoulette = ({ courses }: CourseRouletteProps) => {
       setSelectedCourses(prev => [...prev, pendingCourse]);
     } catch (err: any) {
       if (err.status === 409) {
-        const conflicts = err.data?.conflicts || [];
+        const conflicts = err.data?.detail?.conflicts || [];
         const conflictMsg = conflicts
           .map((c: any) => `Period ${c.period}, Slot ${c.slot} conflicts with ${c.conflicting_course_name}`)
           .join('; ');

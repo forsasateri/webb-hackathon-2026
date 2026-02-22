@@ -14,9 +14,10 @@ interface CourseListProps {
   title?: string;
   onEnroll?: (id: number) => void;
   onDrop?: (id: number) => void;
+  filterComponent?: React.ReactNode;
 }
 
-export const CourseList = ({ courses, title = 'All Available Courses', onEnroll, onDrop }: CourseListProps) => {
+export const CourseList = ({ courses, title = 'All Available Courses', onEnroll, onDrop, filterComponent }: CourseListProps) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const startIdx = (currentPage - 1) * PAGE_SIZE;
@@ -32,6 +33,11 @@ export const CourseList = ({ courses, title = 'All Available Courses', onEnroll,
         }}>
           {title}
         </Title>
+        {filterComponent && (
+          <div style={{ marginBottom: '30px' }}>
+            {filterComponent}
+          </div>
+        )}
         <Row gutter={[16, 16]}>
           {paginatedCourses.map((course, index) => (
             <Col xs={24} sm={24} md={12} lg={8} key={course.id}>

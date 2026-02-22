@@ -1,20 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Typography, Button, Space, Progress, message, Result, Tag } from 'antd';
 import { ThunderboltOutlined, TrophyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { BattleCard } from '../components/CourseBattle/BattleCard';
+import { ShatterEffect, ShockwaveEffect } from '../components/CourseBattle/ShatterEffect';
 import { getAllCourses } from '../api/courses';
 import { getCourseRecommendations } from '../api/recommendations';
 import { enrollInCourse } from '../api/enrollment';
 import { useAuth } from '../context/AuthContext';
+import { getColorForCourse } from '../shared/courseColor';
 import type { Course } from '../types';
 
 const { Title, Text, Paragraph } = Typography;
 
-const TOTAL_ROUNDS = 7;
+const TOTAL_ROUNDS = 4;
 
 type BattlePhase = 'init' | 'battle' | 'result';
+type DestroyedSide = 'left' | 'right' | null;
 
 export const CourseBattlePage = () => {
   const { isAuthenticated } = useAuth();
@@ -32,6 +35,13 @@ export const CourseBattlePage = () => {
   const [fetchingNext, setFetchingNext] = useState(false);
   const [winner, setWinner] = useState<Course | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+
+  // Visual effect state
+  const [destroyedSide, setDestroyedSide] = useState<DestroyedSide>(null);
+  const [shatterColor, setShatterColor] = useState('#ff003c');
+  const [screenShake, setScreenShake] = useState(false);
+  const [winnerPulse, setWinnerPulse] = useState<'left' | 'right' | null>(null);
+  const battleContainerRef = useRef<HTMLDivElement>(null);
 
   // Load all courses on mount
   useEffect(() => {
@@ -75,21 +85,48 @@ export const CourseBattlePage = () => {
     setWinner(null);
   };
 
+  // ── Trigger visual destruction effects ──
+  const triggerDestructionFX = (loserSide: 'left' | 'right', winnerSide: 'left' | 'right', loserCourse: Course) => {
+    // 1) Shatter the loser card
+    setShatterColor(getColorForCourse(loserCourse));
+    setDestroyedSide(loserSide);
+
+    // 2) Winner pulse (impact glow)
+    setWinnerPulse(winnerSide);
+
+    // 3) Screen shake
+    setScreenShake(true);
+
+    // Reset non-critical effects after animation
+    // NOTE: destroyedSide is reset in the course-swap setTimeout,
+    //       NOT here, to avoid the old card reappearing before replacement.
+    setTimeout(() => {
+      setWinnerPulse(null);
+      setScreenShake(false);
+    }, 850);
+  };
+
   // Handle user selection
   const handleSelect = async (selected: Course) => {
     if (animating || fetchingNext) return;
 
     const isLeft = selected.id === leftCourse?.id;
-    // loser = isLeft ? rightCourse : leftCourse;
+    const loserSide: 'left' | 'right' = isLeft ? 'right' : 'left';
+    const winnerSide: 'left' | 'right' = isLeft ? 'left' : 'right';
+    const loserCourse = isLeft ? rightCourse! : leftCourse!;
+
+    // Fire destruction visual effects
+    triggerDestructionFX(loserSide, winnerSide, loserCourse);
 
     // Last round → we have our winner
     if (round >= TOTAL_ROUNDS) {
       setAnimating(true);
       setTimeout(() => {
+        setDestroyedSide(null);
         setWinner(selected);
         setPhase('result');
         setAnimating(false);
-      }, 400);
+      }, 900);
       return;
     }
 
@@ -124,10 +161,13 @@ export const CourseBattlePage = () => {
 
     if (!nextChallenger) {
       // No more courses available → winner is current selection
-      setWinner(selected);
-      setPhase('result');
-      setAnimating(false);
-      setFetchingNext(false);
+      setTimeout(() => {
+        setDestroyedSide(null);
+        setWinner(selected);
+        setPhase('result');
+        setAnimating(false);
+        setFetchingNext(false);
+      }, 800);
       return;
     }
 
@@ -138,8 +178,9 @@ export const CourseBattlePage = () => {
       return next;
     });
 
-    // Animate card swap
+    // Wait for shatter animation, then swap in new challenger
     setTimeout(() => {
+      setDestroyedSide(null); // reset together with course swap — avoids old card reappearing
       if (isLeft) {
         // Selected left, replace right
         setRightCourse(nextChallenger);
@@ -150,7 +191,7 @@ export const CourseBattlePage = () => {
       setRound(prev => prev + 1);
       setAnimating(false);
       setFetchingNext(false);
-    }, 400);
+    }, 900);
   };
 
   // Enroll in the winner course
@@ -167,7 +208,7 @@ export const CourseBattlePage = () => {
       message.success(`Successfully enrolled in ${winner.code}!`);
     } catch (err: any) {
       if (err.status === 409) {
-        const conflicts = err.data?.conflicts || [];
+        const conflicts = err.data?.detail?.conflicts || [];
         const conflictMsg = conflicts
           .map((c: any) => `Period ${c.period}, Slot ${c.slot} conflicts with ${c.conflicting_course_name}`)
           .join('; ');
@@ -293,7 +334,11 @@ export const CourseBattlePage = () => {
 
   // ── Battle Phase ──
   return (
-    <div style={{ textAlign: 'center', padding: '20px' }}>
+    <div
+      ref={battleContainerRef}
+      className={screenShake ? 'battle-screen-shake' : ''}
+      style={{ textAlign: 'center', padding: '20px' }}
+    >
       <Title level={2} style={{
         fontFamily: "var(--font-display, 'Orbitron', monospace)",
         letterSpacing: '0.05em',
@@ -328,25 +373,52 @@ export const CourseBattlePage = () => {
           alignItems: 'center',
           gap: 24,
           flexWrap: 'wrap',
+          position: 'relative',
         }}
       >
-        <AnimatePresence mode="wait">
-          {leftCourse && (
-            <motion.div
-              key={`left-${leftCourse.id}`}
-              initial={{ opacity: 0, x: -50, rotateY: -15 }}
-              animate={{ opacity: animating ? 0.5 : 1, x: 0, rotateY: 0 }}
-              exit={{ opacity: 0, x: -80, scale: 0.8 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            >
-              <BattleCard
-                course={leftCourse}
-                onSelect={handleSelect}
-                disabled={animating}
-              />
-            </motion.div>
+        {/* ── Left card ── */}
+        <div style={{ position: 'relative' }}>
+          <AnimatePresence mode="popLayout">
+            {leftCourse && (
+              <motion.div
+                key={`left-${leftCourse.id}`}
+                initial={{ opacity: 0, x: -60, rotateY: -15, scale: 0.9 }}
+                animate={{
+                  opacity: destroyedSide === 'left' ? 0 : (animating ? 0.6 : 1),
+                  x: 0,
+                  rotateY: 0,
+                  scale: winnerPulse === 'left' ? 1.05 : 1,
+                }}
+                exit={{ opacity: 0 }}
+                transition={destroyedSide === 'left'
+                  ? { duration: 0.05 }   /* instant hide — ShatterEffect is the real exit */
+                  : { duration: 0.4, ease: 'easeOut' }
+                }
+                className={winnerPulse === 'left' ? 'battle-winner-pulse' : ''}
+              >
+                <BattleCard
+                  course={leftCourse}
+                  onSelect={handleSelect}
+                  disabled={animating}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Shatter effect overlay for left card */}
+          {destroyedSide === 'left' && (
+            <ShatterEffect
+              active={true}
+              color={shatterColor}
+              side="left"
+            />
           )}
-        </AnimatePresence>
+
+          {/* Shockwave on the destroyed side */}
+          {destroyedSide === 'left' && (
+            <ShockwaveEffect active={true} color={shatterColor} />
+          )}
+        </div>
 
         {/* VS badge */}
         <div
@@ -363,23 +435,49 @@ export const CourseBattlePage = () => {
           VS
         </div>
 
-        <AnimatePresence mode="wait">
-          {rightCourse && (
-            <motion.div
-              key={`right-${rightCourse.id}`}
-              initial={{ opacity: 0, x: 50, rotateY: 15 }}
-              animate={{ opacity: animating ? 0.5 : 1, x: 0, rotateY: 0 }}
-              exit={{ opacity: 0, x: 80, scale: 0.8 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            >
-              <BattleCard
-                course={rightCourse}
-                onSelect={handleSelect}
-                disabled={animating}
-              />
-            </motion.div>
+        {/* ── Right card ── */}
+        <div style={{ position: 'relative' }}>
+          <AnimatePresence mode="popLayout">
+            {rightCourse && (
+              <motion.div
+                key={`right-${rightCourse.id}`}
+                initial={{ opacity: 0, x: 60, rotateY: 15, scale: 0.9 }}
+                animate={{
+                  opacity: destroyedSide === 'right' ? 0 : (animating ? 0.6 : 1),
+                  x: 0,
+                  rotateY: 0,
+                  scale: winnerPulse === 'right' ? 1.05 : 1,
+                }}
+                exit={{ opacity: 0 }}
+                transition={destroyedSide === 'right'
+                  ? { duration: 0.05 }   /* instant hide — ShatterEffect is the real exit */
+                  : { duration: 0.4, ease: 'easeOut' }
+                }
+                className={winnerPulse === 'right' ? 'battle-winner-pulse' : ''}
+              >
+                <BattleCard
+                  course={rightCourse}
+                  onSelect={handleSelect}
+                  disabled={animating}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Shatter effect overlay for right card */}
+          {destroyedSide === 'right' && (
+            <ShatterEffect
+              active={true}
+              color={shatterColor}
+              side="right"
+            />
           )}
-        </AnimatePresence>
+
+          {/* Shockwave on the destroyed side */}
+          {destroyedSide === 'right' && (
+            <ShockwaveEffect active={true} color={shatterColor} />
+          )}
+        </div>
       </div>
 
       {fetchingNext && (

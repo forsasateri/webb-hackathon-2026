@@ -35,14 +35,19 @@ export const Navbar = () => {
       label: <Link to="/courses">All Courses</Link>
     },
     {
-      key: '/selection',
-      icon: <SelectOutlined />,
-      label: <Link to="/selection">Course Selection</Link>
+      key: '/tiers',
+      icon: <RiseOutlined />,
+      label: <Link to="/tiers">Course Tiers</Link>
     },
     {
       key: '/battle',
       icon: <ThunderboltOutlined />,
       label: <Link to="/battle">Course Battle</Link>
+    },
+    {
+      key: '/selection',
+      icon: <SelectOutlined />,
+      label: <Link to="/selection">Course Selection</Link>
     },
     ...(isAuthenticated
       ? [
@@ -57,11 +62,6 @@ export const Navbar = () => {
       key: '/grade',
       icon: <BarChartOutlined />,
       label: <Link to="/grade">Grade</Link>
-    },
-    {
-      key: '/tiers',
-      icon: <RiseOutlined />,
-      label: <Link to="/tiers">Course Tiers</Link>
     }
   ];
 
@@ -97,7 +97,7 @@ export const Navbar = () => {
           letterSpacing: '0.05em',
         }}
       >
-        Better LISAM
+        CYBERSAM
       </div>
 
       <Menu

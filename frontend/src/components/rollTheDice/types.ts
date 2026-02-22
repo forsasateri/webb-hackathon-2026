@@ -5,7 +5,7 @@ export interface DiceRollResult {
   diceValues: string[];
   /** Numeric total of all dice */
   total: number;
-  /** Average score (floor) */
+  /** Average score (rounded) */
   average: number;
   /** Final grade label (U, 3, 4, or 5) */
   grade: string;

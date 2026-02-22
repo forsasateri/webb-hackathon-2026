@@ -63,6 +63,10 @@ def average_to_grade(avg_floor: int) -> str:
         return "5"
     return str(avg_floor)
 
+def rounded_average(total: int) -> int:
+    # Use half-up rounding to stay consistent with frontend Math.round behavior.
+    return int((total / DICE_COUNT) + 0.5)
+
 
 def get_face_distribution_for_grade(grade: str) -> dict[str, int]:
     if grade == "U":
@@ -231,7 +235,7 @@ def _resolve_client_result(
     average = (
         client_average
         if isinstance(client_average, int)
-        else (math.floor(total / DICE_COUNT) if isinstance(total, int) else None)
+        else (rounded_average(total) if isinstance(total, int) else None)
     )
     grade = None
     if isinstance(client_grade, str) and client_grade in GRADE_KEYS:
@@ -239,7 +243,7 @@ def _resolve_client_result(
     elif isinstance(average, int):
         grade = average_to_grade(average)
     elif isinstance(computed_total, int):
-        grade = average_to_grade(math.floor(computed_total / DICE_COUNT))
+        grade = average_to_grade(rounded_average(computed_total))
     else:
         grade = fallback_grade
 

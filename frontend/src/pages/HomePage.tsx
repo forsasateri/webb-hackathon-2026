@@ -22,7 +22,7 @@ export const HomePage = () => {
         >
           <h1
             className="glitch"
-            data-text="BETTER LISAM"
+            data-text="CYBERSAM"
             style={{
               fontSize: 'clamp(2rem, 5vw, 3.5rem)',
               fontFamily: "var(--font-display, 'Orbitron', monospace)",
@@ -31,7 +31,7 @@ export const HomePage = () => {
               lineHeight: 1.2,
             }}
           >
-            BETTER LISAM
+            CYBERSAM
           </h1>
         </motion.div>
 
