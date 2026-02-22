@@ -31,23 +31,22 @@ export type GradeKey = 'U' | '3' | '4' | '5';
 
 export const GRADE_KEYS: GradeKey[] = ['U', '3', '4', '5'];
 
-/** Face distribution for dice based on current grade - favors improvement */
+/** Face distribution for dice - polarized for balanced risk */
 export function getFaceDistributionForGrade(grade: string): Record<GradeKey, number> {
+  // Polarized distribution: more high (5) and low (U) faces, fewer middle (3,4).
+  // Creates balanced risk: roughly equal chance to improve or worsen,
+  // with a slight bias toward losing for fairness.
+  // Distribution: 2U, 1x3, 1x4, 2x5 (4 extreme faces vs 2 middle faces)
   switch (grade) {
     case 'U':
-      // From U, higher chance to improve (3,4,5 faces dominate)
-      return { U: 1, '3': 2, '4': 2, '5': 1 };
+      return { U: 2, '3': 1, '4': 1, '5': 2 };
     case '3':
-      // From 3, moderate improvement chance
-      return { U: 1, '3': 1, '4': 2, '5': 2 };
+      return { U: 2, '3': 1, '4': 1, '5': 2 };
     case '4':
-      // From 4, slight improvement chance
-      return { U: 1, '3': 1, '4': 1, '5': 3 };
+      return { U: 2, '3': 1, '4': 1, '5': 2 };
     case '5':
-      // Already max, keep it good
-      return { U: 0, '3': 1, '4': 2, '5': 3 };
+      return { U: 2, '3': 1, '4': 1, '5': 2 };
     default:
-      // Default balanced distribution
       return { U: 2, '3': 1, '4': 1, '5': 2 };
   }
 }

@@ -69,14 +69,18 @@ def rounded_average(total: int) -> int:
 
 
 def get_face_distribution_for_grade(grade: str) -> dict[str, int]:
+    # Polarized distribution: more high (5) and low (U) faces, fewer middle (3,4).
+    # Creates balanced risk: roughly equal chance to improve or worsen,
+    # with a slight bias toward losing for fairness.
+    # Distribution: 2U, 1x3, 1x4, 2x5 (4 extreme faces vs 2 middle faces)
     if grade == "U":
-        return {"U": 1, "3": 2, "4": 2, "5": 1}
+        return {"U": 2, "3": 1, "4": 1, "5": 2}
     if grade == "3":
-        return {"U": 1, "3": 1, "4": 2, "5": 2}
+        return {"U": 2, "3": 1, "4": 1, "5": 2}
     if grade == "4":
-        return {"U": 1, "3": 1, "4": 1, "5": 3}
+        return {"U": 2, "3": 1, "4": 1, "5": 2}
     if grade == "5":
-        return {"U": 0, "3": 1, "4": 2, "5": 3}
+        return {"U": 2, "3": 1, "4": 1, "5": 2}
     return {"U": 2, "3": 1, "4": 1, "5": 2}
 
 
