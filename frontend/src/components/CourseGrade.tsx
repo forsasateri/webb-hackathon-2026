@@ -24,6 +24,8 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
   const completedCourses = scheduleEntries.filter(
     (entry) => entry.finished_status
   );
+  const panelWidth = 'min(760px, calc(100vw - 32px))';
+  const selectWidth = 'min(560px, calc(100vw - 32px))';
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -32,7 +34,7 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
   );
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '40px' }}>
+    <div style={{ textAlign: 'center', marginTop: '40px', paddingBottom: '32px' }}>
       <Title level={2} style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>My Grades</Title>
 
       {completedCourses.length === 0 ? (
@@ -42,7 +44,7 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
       ) : (
         <>
           <Select
-            style={{ width: 300 }}
+            style={{ width: selectWidth }}
             placeholder="Select a completed course"
             onChange={(value) => setSelectedId(value)}
           >
@@ -54,7 +56,7 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
           </Select>
 
           {selectedEntry && (
-            <Card style={{ marginTop: '30px', maxWidth: '500px', marginInline: 'auto' }}>
+            <Card style={{ marginTop: '30px', width: panelWidth, marginInline: 'auto' }}>
               <Title level={4}>
                 {selectedEntry.course.code} - {selectedEntry.course.name}
               </Title>

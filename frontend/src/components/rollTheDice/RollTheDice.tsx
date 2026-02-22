@@ -47,11 +47,16 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
   const [status, setStatus] = useState<'waiting' | 'rolling' | 'complete'>('waiting');
   const [liveValues, setLiveValues] = useState<string[]>([]);
   const [liveAverage, setLiveAverage] = useState<string>('');
+  const panelWidth = 'min(760px, calc(100vw - 32px))';
 
   // Map score to grade
   const { grade: mappedGrade, original, mapped: wasMapped } = useMemo(() => {
     return mapScoreToGrade(currentScore);
   }, [currentScore]);
+  const faceDistribution = useMemo(
+    () => (mappedGrade ? getFaceDistributionForGrade(mappedGrade) : null),
+    [mappedGrade]
+  );
 
   const handleRollUpdate = useCallback((rollStatus: 'rolling' | 'complete', values: string[], average: string) => {
     setLiveValues(values);
@@ -91,11 +96,10 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
   }, [mappedGrade, initialize, cleanup]);
 
   const handleLaunch = () => {
-    if (isRolling || !mappedGrade) return;
+    if (isRolling || !mappedGrade || !faceDistribution) return;
     setResult(null);
     setStatus('rolling');
-    const distribution = getFaceDistributionForGrade(mappedGrade);
-    launchDice(distribution);
+    launchDice(faceDistribution);
   };
 
   const showImprovement = result && mappedGrade && (
@@ -112,7 +116,7 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
         description={`Course ${courseCode} does not have a valid grade for the dice game.`}
         type="info"
         showIcon
-        style={{ marginTop: '24px', maxWidth: '500px', marginInline: 'auto' }}
+        style={{ marginTop: '24px', width: panelWidth, marginInline: 'auto' }}
       />
     );
   }
@@ -121,18 +125,17 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
     <Card
       style={{
         marginTop: '24px',
-        maxWidth: '500px',
+        width: panelWidth,
         marginInline: 'auto',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%)',
         borderRadius: '16px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+        boxShadow: '0 16px 36px rgba(0, 0, 0, 0.28)'
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-        <Title level={4} style={{ margin: 0, color: '#1a1a2e' }}>
+        <Title level={4} style={{ margin: 0, color: 'var(--text-primary)' }}>
           🎲 Roll the Dice to Improve Your Grade
         </Title>
-        <Text type="secondary" style={{ fontSize: '14px' }}>
+        <Text type="secondary" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
           Current Grade:{' '}
           {wasMapped && original && (
             <span style={{ textDecoration: 'line-through', color: '#999', marginRight: '8px' }}>
@@ -164,8 +167,9 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
           height: '300px',
           borderRadius: '12px',
           overflow: 'hidden',
-          background: 'linear-gradient(180deg, #e9eef5 0%, #b6c4d3 100%)',
-          boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.1)',
+          background:
+            'radial-gradient(circle at 26% 14%, rgba(0, 240, 255, 0.18) 0%, rgba(10, 14, 26, 0.9) 42%), linear-gradient(180deg, rgba(17, 24, 39, 0.92) 0%, rgba(7, 11, 20, 0.98) 100%)',
+          boxShadow: 'inset 0 2px 14px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(0, 240, 255, 0.14)',
           marginBottom: '16px'
         }}
       />
@@ -231,9 +235,9 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
             fontSize: '18px',
             fontWeight: 'bold',
             borderRadius: '24px',
-            background: isRolling ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: isRolling ? '#4b5563' : 'linear-gradient(135deg, #00f0ff 0%, #4361ee 100%)',
             border: 'none',
-            boxShadow: isRolling ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)',
+            boxShadow: isRolling ? 'none' : '0 4px 18px rgba(0, 240, 255, 0.3)',
             transition: 'all 0.3s ease'
           }}
         >
@@ -242,14 +246,22 @@ export function RollTheDice({ currentScore, courseCode }: RollTheDiceProps) {
       </div>
 
       {/* Face Distribution Info */}
-      <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(255,255,255,0.6)', borderRadius: '8px' }}>
+      <div
+        style={{
+          marginTop: '16px',
+          padding: '12px',
+          background: 'rgba(15, 23, 42, 0.66)',
+          borderRadius: '8px',
+          border: '1px solid rgba(0, 240, 255, 0.16)'
+        }}
+      >
         <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: '8px' }}>
           Dice face distribution (higher numbers favor improvement from grade {mappedGrade}):
         </Text>
         <Space>
           {GRADE_KEYS.map(key => {
-            const dist = getFaceDistributionForGrade(mappedGrade);
-            const count = dist[key as keyof typeof dist];
+            if (!faceDistribution) return null;
+            const count = faceDistribution[key as keyof typeof faceDistribution];
             return (
               <Tag key={key} color={gradeColors[key]} style={{ fontSize: '11px' }}>
                 {key}: {count}/6

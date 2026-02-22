@@ -264,20 +264,35 @@ export function useDiceGame(
 
     console.log('[DiceGame] Initializing...');
 
-    const isNewRockerReady = document.fonts.check('400 16px "New Rocker"');
+    const fontSet = document.fonts;
 
-    // Delay one initialization cycle so the first dice textures are painted with New Rocker.
-    if (!isNewRockerReady && !refs.current.fontPreloadAttempted) {
+    // Always preload once before first scene initialization so initial dice textures use New Rocker.
+    if (fontSet && !refs.current.fontPreloadAttempted) {
       refs.current.fontPreloadAttempted = true;
-      const timeoutMs = 1500;
-      void Promise.race([
-        document.fonts.load('400 16px "New Rocker"'),
-        new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs))
-      ])
-        .catch(() => {})
+      void fontSet
+        .load('400 120px "New Rocker"', 'U345')
+        .then((faces) => {
+          if (faces.length > 0) return;
+          return fontSet.load('400 120px New Rocker', 'U345');
+        })
+        .then(() => fontSet.ready)
+        .catch(async () => {
+          if (typeof FontFace === 'undefined') return;
+          const injectedFace = new FontFace(
+            'New Rocker',
+            'url("/fonts/new-rocker.regular.ttf") format("truetype")',
+            { weight: '400', style: 'normal' }
+          );
+          const loadedFace = await injectedFace.load();
+          fontSet.add(loadedFace);
+        })
         .finally(() => {
-          if (!container.isConnected || refs.current.scene || container.querySelector('canvas')) return;
-          initialize(container);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              if (!container.isConnected || refs.current.scene || container.querySelector('canvas')) return;
+              initialize(container);
+            });
+          });
         });
       return;
     }
@@ -301,16 +316,16 @@ export function useDiceGame(
       const ctx = canvas.getContext('2d')!;
 
       const grad = ctx.createLinearGradient(0, 0, size, size);
-      grad.addColorStop(0, '#d6dde6');
-      grad.addColorStop(1, '#c4cfd9');
+      grad.addColorStop(0, '#182235');
+      grad.addColorStop(1, '#0d1627');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, size, size);
 
       const tile = 64;
       for (let y = 0; y < size; y += tile) {
         for (let x = 0; x < size; x += tile) {
-          const alpha = (x / tile + y / tile) % 2 === 0 ? 0.09 : 0.03;
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+          const alpha = (x / tile + y / tile) % 2 === 0 ? 0.08 : 0.03;
+          ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
           ctx.fillRect(x, y, tile, tile);
         }
       }
@@ -318,8 +333,8 @@ export function useDiceGame(
       for (let i = 0; i < 3200; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
-        const alpha = Math.random() * 0.05;
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+        const alpha = Math.random() * 0.04;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fillRect(x, y, 1, 1);
       }
 
@@ -335,9 +350,9 @@ export function useDiceGame(
       const center = size / 2;
 
       const radial = ctx.createRadialGradient(center * 0.88, center * 0.78, size * 0.08, center, center, size * 0.56);
-      radial.addColorStop(0, '#ffffff');
-      radial.addColorStop(0.55, '#f9f5ec');
-      radial.addColorStop(1, '#ece7dd');
+      radial.addColorStop(0, '#f3f7fd');
+      radial.addColorStop(0.55, '#dde5f0');
+      radial.addColorStop(1, '#c8d3e1');
       ctx.fillStyle = radial;
       ctx.fillRect(0, 0, size, size);
 
@@ -460,33 +475,33 @@ export function useDiceGame(
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.03;
+    renderer.toneMappingExposure = 0.93;
     container.appendChild(renderer.domElement);
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe9eef5);
-    scene.fog = new THREE.Fog(0xe9eef5, 7.5, 16);
+    scene.background = new THREE.Color(0x0a1020);
+    scene.fog = new THREE.Fog(0x0a1020, 7.5, 16);
 
     // Camera
-    const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 100);
-    camera.position.set(0, 2.1, 4.6);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 3.1, 2.3);
 
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.42, 0);
+    controls.target.set(0, 0.24, 0);
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.minDistance = 3.2;
-    controls.maxDistance = 7;
-    controls.maxPolarAngle = Math.PI * 0.47;
+    controls.minDistance = 2.1;
+    controls.maxDistance = 5.4;
+    controls.maxPolarAngle = Math.PI * 0.43;
 
     // Lights
-    const hemiLight = new THREE.HemisphereLight(0xf0f8ff, 0x9f9387, 0.85);
+    const hemiLight = new THREE.HemisphereLight(0x89d8ff, 0x0b1224, 0.62);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    const keyLight = new THREE.DirectionalLight(0xeaf9ff, 0.92);
     keyLight.position.set(3.2, 5.2, 3.2);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
@@ -498,7 +513,7 @@ export function useDiceGame(
     keyLight.shadow.camera.far = 20;
     scene.add(keyLight);
 
-    const rimLight = new THREE.PointLight(0xa9d1ff, 1.05, 10, 2);
+    const rimLight = new THREE.PointLight(0x25cfe8, 0.64, 10, 2);
     rimLight.position.set(-2.2, 2.8, -2.7);
     scene.add(rimLight);
 
@@ -512,8 +527,8 @@ export function useDiceGame(
       new THREE.PlaneGeometry(20, 20),
       new THREE.MeshStandardMaterial({
         map: floorTexture,
-        roughness: 0.85,
-        metalness: 0.03
+        roughness: 0.9,
+        metalness: 0.06
       })
     );
     floor.rotation.x = -Math.PI / 2;
@@ -523,7 +538,7 @@ export function useDiceGame(
     // Backdrop
     const backdrop = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 8),
-      new THREE.MeshStandardMaterial({ color: 0xdce5ef, roughness: 0.95, metalness: 0.01 })
+      new THREE.MeshStandardMaterial({ color: 0x111b2f, roughness: 0.95, metalness: 0.04 })
     );
     backdrop.position.set(0, 3, -4.1);
     scene.add(backdrop);
@@ -566,7 +581,7 @@ export function useDiceGame(
 
     const rimStripe = new THREE.Mesh(
       new THREE.TorusGeometry(PLATE_RADIUS - 0.06, 0.008, 16, 144),
-      new THREE.MeshStandardMaterial({ color: 0x6a90bf, roughness: 0.35, metalness: 0.02 })
+      new THREE.MeshStandardMaterial({ color: 0x20b9d8, roughness: 0.3, metalness: 0.08 })
     );
     rimStripe.position.y = 0.165;
     rimStripe.rotation.x = Math.PI / 2;
@@ -714,7 +729,7 @@ export function useDiceGame(
         sleepSpeedLimit: 0.06,
         sleepTimeLimit: 1.2
       });
-      body.position.set(-1.0, 1.1 + i * 0.16, (i - 1) * 0.2);
+      body.position.set((i - 1) * 0.34, 1.02 + i * 0.08, (i - 1) * 0.14);
       world.addBody(body);
 
       dice.push({ mesh, body });
