@@ -644,7 +644,7 @@ Test Type: Functional Verify + Demo Walkthrough
 
 ```
 Prepare a Demo Flow:
-  1. Home Display → "Welcome to Better LISAM" + PanicButton
+  1. Home Display → "Welcome to CYBER LISAM" + PanicButton
   2. Login(Dev Login) → Navbar Change
   3. Browse Courses (/courses) → Search "Machine Learning"
   4. Course Detail → Reviews (Stars+Com)+ Recommendations

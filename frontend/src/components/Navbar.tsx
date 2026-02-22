@@ -97,7 +97,7 @@ export const Navbar = () => {
           letterSpacing: '0.05em',
         }}
       >
-        Better LISAM
+        CYBER LISAM
       </div>
 
       <Menu

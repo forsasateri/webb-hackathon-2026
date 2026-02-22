@@ -70,7 +70,26 @@
 | P4 数据驱动+体验打磨 | 🔄 部分完成 | AllCoursesPage 分页、CourseCard 雷达图 (Tier List 数据化、筛选、课表网格待做) |
 | P6 六边形雷达图可视化 | ✅ 完成 | CourseRadarChart 组件、BattleCard + CourseCard 均集成雷达图 |
 | P7 Hackathon Wow Factor | ✅ 完成 | 赛博朋克暗黑主题、Framer Motion 动效、游戏化 UI、首页动态背景、彩蛋特效 |
-| P5 Demo 准备 | ⬜ 未开始 | 错误边界、UI 一致性、Demo 走查 |
+| P5 Demo 准备 | 🔄 进行中 | 品牌统一 (Better LISAM → CYBER LISAM)、错误边界、UI 一致性、Demo 走查 |
+
+---
+
+## P5: Demo 准备 🔄 进行中
+
+### 完成任务
+
+#### P5-1: 品牌名称统一 — Better LISAM → CYBER LISAM ✅
+- **修改文件**: `src/components/Navbar.tsx`, `src/pages/HomePage.tsx`
+- **问题**: Navbar 左上角 Logo 显示 "Better LISAM"，首页主标题 glitch 动画显示 "BETTER LISAM"，与赛博朋克主题品牌 "CYBER LISAM" 不一致
+- **修复**:
+  - `Navbar.tsx`: `Better LISAM` → `CYBER LISAM`
+  - `HomePage.tsx`: `data-text="BETTER LISAM"` → `data-text="CYBER LISAM"`，正文 `BETTER LISAM` → `CYBER LISAM`
+  - `index.html` `<title>` 已为 `CYBER LISAM`，无需修改
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `src/components/Navbar.tsx` | 修复 | Logo 文字 Better LISAM → CYBER LISAM |
+| `src/pages/HomePage.tsx` | 修复 | 主标题 + glitch data-text → CYBER LISAM |
 
 ---
 
@@ -135,7 +154,7 @@
 #### P7-4: 首页降维打击 ✅
 - **文件**: `src/pages/HomePage.tsx`（完全重写）
 - **改动**:
-  - 故障艺术 Slogan: `<h1 className="glitch" data-text="BETTER LISAM">` + CSS `clip-path` 抖动
+  - 故障艺术 Slogan: `<h1 className="glitch" data-text="CYBER LISAM">` + CSS `clip-path` 抖动
   - 赛博朋克副标题: "Survive the system. Choose your destiny."
   - 三个 CTA 按钮: Browse Courses（青色呼吸灯）、Spin the Wheel（紫色）、Course Battle（品红）
   - `motion.div` 交错入场动画（标题 → 副标题 0.3s → 按钮 0.5s → Panic 0.8s）
