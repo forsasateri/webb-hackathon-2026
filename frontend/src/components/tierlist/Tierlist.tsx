@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { Course } from "../../types";
+import { computeOverallAvg, type Course } from "../../types";
 import { TierCategory } from "./TierCategory";
+import { hashString } from "../../shared";
 
 
 interface TierlistProps {
@@ -34,9 +35,41 @@ export const Tierlist = ({ courses }: TierlistProps) => {
             F: []
         };
 
-        courses.forEach(course => {
-            const randomTier = ['S', 'A', 'B', 'C', 'D', 'E', 'F'][Math.floor(Math.random() * 7)];
-            newTiers[randomTier].push(course);
+        // Only do for first 30 courses to avoid overcrowding
+        const limitedCourses = courses.slice(0, 30);
+        limitedCourses.forEach(course => {
+
+            // // This gives persistent tiers
+            // const tierIndex = hashString(course.code + course.name) % 7;
+            // const randomTier = ['S', 'A', 'B', 'C', 'D', 'E', 'F'][tierIndex];
+
+            // // Only add if less than 10 elements
+            // if (newTiers[randomTier].length < 7) {
+            //     newTiers[randomTier].push(course);
+            // }
+
+            // New version we use the actual avg instead of faking in frontnd
+            const value = computeOverallAvg(course); // value is between 1 and 5
+            let tier: string;
+            if (value === null) { // In case value is not set we use E as default
+                tier = 'E'; 
+            } else if (value >= 4) {
+                tier = 'S';
+            } else if (value >= 3.8) {
+                tier = 'A';
+            } else if (value >= 3.4) {
+                tier = 'B';
+            } else if (value >= 3.1) {
+                tier = 'C';
+            } else if (value >= 2.9) {
+                tier = 'D';
+            } else if (value >= 2.7) {
+                tier = 'E';
+            } else {
+                tier = 'F';
+            }
+
+            newTiers[tier].push(course);
         });
 
         setTiers(newTiers);
