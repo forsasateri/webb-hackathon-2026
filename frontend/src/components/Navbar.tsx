@@ -40,14 +40,14 @@ export const Navbar = () => {
       label: <Link to="/tiers">Course Tiers</Link>
     },
     {
-      key: '/selection',
-      icon: <SelectOutlined />,
-      label: <Link to="/selection">Course Selection</Link>
-    },
-    {
       key: '/battle',
       icon: <ThunderboltOutlined />,
       label: <Link to="/battle">Course Battle</Link>
+    },
+    {
+      key: '/selection',
+      icon: <SelectOutlined />,
+      label: <Link to="/selection">Course Selection</Link>
     },
     ...(isAuthenticated
       ? [
