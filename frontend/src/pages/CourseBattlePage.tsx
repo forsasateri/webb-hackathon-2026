@@ -12,7 +12,7 @@ import type { Course } from '../types';
 
 const { Title, Text, Paragraph } = Typography;
 
-const TOTAL_ROUNDS = 7;
+const TOTAL_ROUNDS = 3;
 
 type BattlePhase = 'init' | 'battle' | 'result';
 

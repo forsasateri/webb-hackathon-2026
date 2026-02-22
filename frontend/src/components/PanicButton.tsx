@@ -89,7 +89,7 @@ export const PanicButton = () => {
                     textAlign: 'center',
                     fontSize: '1.3em',
                     fontWeight: 600,
-                    color: '#00f0ff',
+                    color: '#000000',
                     textShadow: '0 0 8px rgba(0, 240, 255, 0.4)',
                     margin: '20px 0',
                 }}>

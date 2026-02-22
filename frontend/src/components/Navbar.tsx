@@ -35,6 +35,11 @@ export const Navbar = () => {
       label: <Link to="/courses">All Courses</Link>
     },
     {
+      key: '/tiers',
+      icon: <RiseOutlined />,
+      label: <Link to="/tiers">Course Tiers</Link>
+    },
+    {
       key: '/selection',
       icon: <SelectOutlined />,
       label: <Link to="/selection">Course Selection</Link>
@@ -57,11 +62,6 @@ export const Navbar = () => {
       key: '/grade',
       icon: <BarChartOutlined />,
       label: <Link to="/grade">Grade</Link>
-    },
-    {
-      key: '/tiers',
-      icon: <RiseOutlined />,
-      label: <Link to="/tiers">Course Tiers</Link>
     }
   ];
 
