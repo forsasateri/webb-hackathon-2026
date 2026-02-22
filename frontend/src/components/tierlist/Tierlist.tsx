@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { computeOverallAvg, type Course } from "../../types";
 import { TierCategory } from "./TierCategory";
-import { hashString } from "../../shared";
 
 
 interface TierlistProps {
