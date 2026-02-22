@@ -1,6 +1,7 @@
 import { getColorForCourse } from "../../shared";
 import type { Course } from "../../types";
-import { Row, Col, Avatar, Tag, Space } from 'antd';
+import { Row, Col, Avatar, Space } from 'antd';
+import { Link } from "react-router-dom";
 
 const tierColors: { [key: string]: string } = {
     S: "#ffd700", // gold
@@ -50,11 +51,24 @@ export const TierCategory = ({ tier, courses }: { tier: string; courses: Course[
                     minHeight: '64px',
                     background: 'rgba(255, 255, 255, 0.03)',
                 }}>
-                    <Space size={[0, 8]} wrap>
+                    <Space size={[8, 12]} wrap>
                         {courses.map((course) => (
-                            <Tag key={course.id} color={getColorForCourse(course)} variant="solid" >
-                                {course.code}
-                            </Tag>
+                            <Link to={`/course/${course.id}`} key={course.id}>
+                                <div style={{
+                                    background: `linear-gradient(145deg, ${getColorForCourse(course)} 0%, ${getColorForCourse(course)}E0 100%)`,
+                                    color: '#000',
+                                    padding: '10px 16px',
+                                    borderRadius: '6px',
+                                    fontWeight: 'bold',
+                                    boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    display: 'inline-block',
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                }}>
+                                    {course.code}
+                                </div>
+                            </Link>
                         ))}
                     </Space>
                 </div>
