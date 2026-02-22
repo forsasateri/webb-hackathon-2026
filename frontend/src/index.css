@@ -245,6 +245,16 @@ a:hover {
   color: var(--text-secondary) !important;
 }
 
+/* Roll-the-dice alert text readability on tinted dark surfaces */
+.roll-dice-alert .ant-alert-message {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.roll-dice-alert .ant-alert-description {
+  color: #bfd0e6 !important;
+}
+
 /* Pagination */
 .ant-pagination .ant-pagination-item a {
   color: var(--text-secondary) !important;

@@ -157,6 +157,47 @@ class EnrollmentCourseResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DiceStatePlan(BaseModel):
+    position: list[float]
+    target: list[float]
+    direction: list[float]
+    speed: float
+    velocity: list[float]
+    angular_velocity: list[float]
+    rotation_euler: list[float]
+
+
+class DiceLaunchPlan(BaseModel):
+    face_layout: list[str]
+    dice_states: list[DiceStatePlan]
+
+
+class DiceRollHistoryEntry(BaseModel):
+
+    roll_id: int
+    attempt_number: int
+    status: str
+    score_before: int
+    score_after: int
+    grade_before: str
+    grade_after: str
+    dice_values: list[str]
+    average: int
+    total: int
+    launch_plan: DiceLaunchPlan | None = None
+    created_at: datetime
+    finalized_at: datetime | None = None
+
+
+class DiceSummary(BaseModel):
+    max_attempts: int
+    attempts_used: int
+    attempts_left: int
+    original_score: int | None
+    current_score: int | None
+    last_roll_at: datetime | None = None
+
+
 class ScheduleEntry(BaseModel):
     """A single enrollment record with course details."""
     enrollment_id: int
@@ -164,6 +205,8 @@ class ScheduleEntry(BaseModel):
     enrolled_at: datetime
     finished_status: bool
     score: int | None
+    dice_summary: DiceSummary
+    dice_history: list[DiceRollHistoryEntry]
 
     model_config = {
         "json_schema_extra": {
@@ -181,6 +224,30 @@ class ScheduleEntry(BaseModel):
                 "enrolled_at": "2026-02-20T12:00:00",
                 "finished_status": False,
                 "score": None,
+                "dice_summary": {
+                    "max_attempts": 3,
+                    "attempts_used": 1,
+                    "attempts_left": 2,
+                    "original_score": 79,
+                    "current_score": 60,
+                    "last_roll_at": "2026-02-22T10:05:00",
+                },
+                "dice_history": [
+                    {
+                        "roll_id": 12,
+                        "attempt_number": 1,
+                        "status": "FINALIZED",
+                        "score_before": 79,
+                        "score_after": 60,
+                        "grade_before": "4",
+                        "grade_after": "3",
+                        "dice_values": ["5", "U", "3"],
+                        "average": 3,
+                        "total": 10,
+                        "created_at": "2026-02-22T10:05:00",
+                        "finalized_at": "2026-02-22T10:05:09",
+                    }
+                ],
             }
         }
     }
@@ -236,6 +303,14 @@ class EnrollmentConflict(BaseModel):
             }
         }
     }
+
+
+class DiceFinalizeRequest(BaseModel):
+    roll_id: int
+    client_dice_values: list[str] | None = None
+    client_total: int | None = None
+    client_average: int | None = None
+    client_grade: str | None = None
 
 
 # ─────────────────────── Reviews ───────────────────────

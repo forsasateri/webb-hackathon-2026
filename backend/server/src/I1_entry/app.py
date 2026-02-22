@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
-from server.src.I4_atoms.db.connection import get_db
+from server.src.I4_atoms.db.connection import get_db, engine
 from server.src.I4_atoms.helpers.jwt_helper import decode_token
 from server.src.I4_atoms.types.schemas import (
     UserRegister, UserLogin, UserResponse, TokenResponse,
     ReviewCreate, ReviewResponse, ReviewListResponse,
+    DiceFinalizeRequest,
     RecommendationResponse,
 )
 from jose import JWTError
@@ -54,6 +56,15 @@ _rs_spec.loader.exec_module(_rs_mod)
 review_get_reviews = _rs_mod.get_reviews
 review_create_review = _rs_mod.create_review
 review_delete_review = _rs_mod.delete_review
+
+# dice-service: directory contains hyphen, use importlib dynamic import
+_ds_init = _os.path.join(_os.path.dirname(__file__), "..", "I3_molecules", "dice-service", "__init__.py")
+_ds_spec = importlib.util.spec_from_file_location("dice_service_pkg", _os.path.normpath(_ds_init))
+_ds_mod = importlib.util.module_from_spec(_ds_spec)
+_ds_spec.loader.exec_module(_ds_mod)
+dice_start_roll = _ds_mod.start_roll
+dice_finalize_roll = _ds_mod.finalize_roll
+dice_clear_rolls_for_course = _ds_mod.clear_rolls_for_course
 
 # ─────────────────────── Mock Token (for frontend dev convenience) ───────────────────────
 
@@ -103,6 +114,50 @@ app = FastAPI(
     description="Hackathon 2026 - Course Selection System Backend API (LiU 6MICS Master's Programme)",
     version="0.5.0",
 )
+
+
+@app.on_event("startup")
+def ensure_dice_roll_schema() -> None:
+    """Create dice_rolls table for existing DBs that were seeded before this feature."""
+    ddl = [
+        """
+        CREATE TABLE IF NOT EXISTS dice_rolls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            course_id INTEGER NOT NULL,
+            enrollment_id INTEGER NOT NULL,
+            attempt_number INTEGER NOT NULL CHECK (attempt_number >= 1),
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            original_score INTEGER NOT NULL CHECK (original_score >= 0 AND original_score <= 100),
+            score_before INTEGER NOT NULL CHECK (score_before >= 0 AND score_before <= 100),
+            score_after INTEGER NOT NULL CHECK (score_after >= 0 AND score_after <= 100),
+            grade_before TEXT NOT NULL,
+            grade_after TEXT NOT NULL,
+            face_layout_json TEXT NOT NULL,
+            launch_params_json TEXT NOT NULL,
+            planned_dice_values_json TEXT NOT NULL,
+            planned_total INTEGER NOT NULL,
+            planned_average INTEGER NOT NULL,
+            planned_grade TEXT NOT NULL,
+            client_dice_values_json TEXT,
+            client_total INTEGER,
+            client_average INTEGER,
+            client_grade TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            finalized_at TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+            FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+            UNIQUE (user_id, course_id, attempt_number)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_dice_rolls_user_course ON dice_rolls (user_id, course_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_dice_rolls_enrollment ON dice_rolls (enrollment_id, created_at)",
+    ]
+
+    with engine.begin() as conn:
+        for stmt in ddl:
+            conn.execute(text(stmt))
 
 # CORS configuration
 app.add_middleware(
@@ -208,6 +263,49 @@ def drop_course(course_id: int, user: UserResponse = Depends(get_current_user), 
 def get_schedule(user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get current user's enrolled courses + schedule"""
     return schedule_get(db, user.id)
+
+
+# ─────────────── Grade Dice Endpoints (P2) ───────────────
+
+@app.post("/api/grade/dice/{course_id}/start", tags=["Grade Dice"])
+def start_grade_dice_roll(course_id: int, user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Start a dice roll: consumes one attempt immediately and persists launch params."""
+    try:
+        return dice_start_roll(db, user.id, course_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@app.post("/api/grade/dice/finalize", tags=["Grade Dice"])
+def finalize_grade_dice_roll(
+    data: DiceFinalizeRequest,
+    user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Finalize dice roll using client-observed result payload; persists audit data."""
+    try:
+        return dice_finalize_roll(
+            db=db,
+            user_id=user.id,
+            roll_id=data.roll_id,
+            client_dice_values=data.client_dice_values,
+            client_total=data.client_total,
+            client_average=data.client_average,
+            client_grade=data.client_grade,
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.delete("/api/grade/dice/{course_id}/debug-clear", tags=["Grade Dice"])
+def debug_clear_grade_dice_rolls(course_id: int, user: UserResponse = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Debug helper: clear current user's dice roll records for one course and restore original score."""
+    try:
+        return dice_clear_rolls_for_course(db=db, user_id=user.id, course_id=course_id, restore_score=True)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 # ─────────────── Review Endpoints (P1) — REAL DB ───────────────
 

@@ -73,3 +73,37 @@ CREATE TABLE IF NOT EXISTS enrollments (
     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
     UNIQUE (user_id, course_id)
 );
+
+-- Dice roll records table
+CREATE TABLE IF NOT EXISTS dice_rolls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    course_id INTEGER NOT NULL,
+    enrollment_id INTEGER NOT NULL,
+    attempt_number INTEGER NOT NULL CHECK (attempt_number >= 1),
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    original_score INTEGER NOT NULL CHECK (original_score >= 0 AND original_score <= 100),
+    score_before INTEGER NOT NULL CHECK (score_before >= 0 AND score_before <= 100),
+    score_after INTEGER NOT NULL CHECK (score_after >= 0 AND score_after <= 100),
+    grade_before TEXT NOT NULL,
+    grade_after TEXT NOT NULL,
+    face_layout_json TEXT NOT NULL,
+    launch_params_json TEXT NOT NULL,
+    planned_dice_values_json TEXT NOT NULL,
+    planned_total INTEGER NOT NULL,
+    planned_average INTEGER NOT NULL,
+    planned_grade TEXT NOT NULL,
+    client_dice_values_json TEXT,
+    client_total INTEGER,
+    client_average INTEGER,
+    client_grade TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finalized_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+    UNIQUE (user_id, course_id, attempt_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_dice_rolls_user_course ON dice_rolls (user_id, course_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_dice_rolls_enrollment ON dice_rolls (enrollment_id, created_at);

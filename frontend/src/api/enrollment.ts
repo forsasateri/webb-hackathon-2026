@@ -3,12 +3,54 @@ import { getAuthToken } from './auth';
 import { BASE_URL } from './base_url';
 
 // Types for schedule API responses
+export interface DiceSummary {
+    max_attempts: number;
+    attempts_used: number;
+    attempts_left: number;
+    original_score: number | null;
+    current_score: number | null;
+    last_roll_at: string | null;
+}
+
+export interface EnrollmentDiceStatePlan {
+    position: [number, number, number];
+    target: [number, number, number];
+    direction: [number, number, number];
+    speed: number;
+    velocity: [number, number, number];
+    angular_velocity: [number, number, number];
+    rotation_euler: [number, number, number];
+}
+
+export interface EnrollmentDiceLaunchPlan {
+    face_layout: string[];
+    dice_states: EnrollmentDiceStatePlan[];
+}
+
+export interface DiceHistoryEntry {
+    roll_id: number;
+    attempt_number: number;
+    status: string;
+    score_before: number;
+    score_after: number;
+    grade_before: string;
+    grade_after: string;
+    dice_values: string[];
+    average: number;
+    total: number;
+    launch_plan: EnrollmentDiceLaunchPlan | null;
+    created_at: string;
+    finalized_at: string | null;
+}
+
 export interface ScheduleEntry {
     enrollment_id: number;
     course: Course;
     enrolled_at: string;
     finished_status: boolean;
     score: number | null;
+    dice_summary: DiceSummary;
+    dice_history: DiceHistoryEntry[];
 }
 
 export interface ScheduleResponse {

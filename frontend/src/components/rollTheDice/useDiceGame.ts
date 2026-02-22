@@ -4,6 +4,7 @@ import * as CANNON from 'cannon-es';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GRADE_KEYS, type GradeKey, type DiceRollResult, scoreValue, scoreToGrade } from './types';
+import type { DiceLaunchPlan } from '../../api/dice';
 
 // Physics and game constants
 const WORLD_STEP = 1 / 120;
@@ -66,7 +67,7 @@ interface DiceGameRefs {
 
 export interface UseDiceGameReturn {
   initialize: (container: HTMLDivElement) => void;
-  launchDice: (faceDistribution: Record<GradeKey, number>) => void;
+  launchDice: (faceDistribution: Record<GradeKey, number>, launchPlan?: DiceLaunchPlan) => boolean;
   isRolling: boolean;
   liveValues: string[];
   currentAverage: string;
@@ -128,12 +129,11 @@ export function useDiceGame(
 
     if (!gameRefs.dice) return;
 
-    const values = gameRefs.liveValues.map((value, index) => {
-      if (typeof value === 'string' && value.length > 0) {
-        return value;
-      }
-      return detectTopFace(gameRefs.dice![index].body, gameRefs.currentFaceLayout).value;
-    });
+    // Final result should come from the settled body orientation at finalize time.
+    const values = gameRefs.dice.map((die) =>
+      detectTopFace(die.body, gameRefs.currentFaceLayout).value
+    );
+    gameRefs.liveValues = [...values];
 
     const numericTotal = values.reduce((sum, value) => sum + scoreValue(value), 0);
     const averageFloor = Math.floor(numericTotal / DICE_COUNT);
@@ -316,16 +316,16 @@ export function useDiceGame(
       const ctx = canvas.getContext('2d')!;
 
       const grad = ctx.createLinearGradient(0, 0, size, size);
-      grad.addColorStop(0, '#182235');
-      grad.addColorStop(1, '#0d1627');
+      grad.addColorStop(0, '#131e30');
+      grad.addColorStop(1, '#0a1220');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, size, size);
 
       const tile = 64;
       for (let y = 0; y < size; y += tile) {
         for (let x = 0; x < size; x += tile) {
-          const alpha = (x / tile + y / tile) % 2 === 0 ? 0.08 : 0.03;
-          ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
+          const alpha = (x / tile + y / tile) % 2 === 0 ? 0.055 : 0.022;
+          ctx.fillStyle = `rgba(66, 156, 233, ${alpha})`;
           ctx.fillRect(x, y, tile, tile);
         }
       }
@@ -333,7 +333,7 @@ export function useDiceGame(
       for (let i = 0; i < 3200; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
-        const alpha = Math.random() * 0.04;
+        const alpha = Math.random() * 0.025;
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fillRect(x, y, 1, 1);
       }
@@ -350,9 +350,9 @@ export function useDiceGame(
       const center = size / 2;
 
       const radial = ctx.createRadialGradient(center * 0.88, center * 0.78, size * 0.08, center, center, size * 0.56);
-      radial.addColorStop(0, '#f3f7fd');
-      radial.addColorStop(0.55, '#dde5f0');
-      radial.addColorStop(1, '#c8d3e1');
+      radial.addColorStop(0, '#d6e3f2');
+      radial.addColorStop(0.55, '#a8bdd3');
+      radial.addColorStop(1, '#7e95ac');
       ctx.fillStyle = radial;
       ctx.fillRect(0, 0, size, size);
 
@@ -475,7 +475,7 @@ export function useDiceGame(
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.93;
+    renderer.toneMappingExposure = 0.78;
     container.appendChild(renderer.domElement);
 
     // Scene
@@ -498,10 +498,10 @@ export function useDiceGame(
     controls.maxPolarAngle = Math.PI * 0.43;
 
     // Lights
-    const hemiLight = new THREE.HemisphereLight(0x89d8ff, 0x0b1224, 0.62);
+    const hemiLight = new THREE.HemisphereLight(0x74bfef, 0x070f1f, 0.46);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xeaf9ff, 0.92);
+    const keyLight = new THREE.DirectionalLight(0xe0f2ff, 0.72);
     keyLight.position.set(3.2, 5.2, 3.2);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.set(2048, 2048);
@@ -513,7 +513,7 @@ export function useDiceGame(
     keyLight.shadow.camera.far = 20;
     scene.add(keyLight);
 
-    const rimLight = new THREE.PointLight(0x25cfe8, 0.64, 10, 2);
+    const rimLight = new THREE.PointLight(0x2f95d8, 0.42, 10, 2);
     rimLight.position.set(-2.2, 2.8, -2.7);
     scene.add(rimLight);
 
@@ -538,7 +538,7 @@ export function useDiceGame(
     // Backdrop
     const backdrop = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 8),
-      new THREE.MeshStandardMaterial({ color: 0x111b2f, roughness: 0.95, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({ color: 0x0d1628, roughness: 0.96, metalness: 0.05 })
     );
     backdrop.position.set(0, 3, -4.1);
     scene.add(backdrop);
@@ -551,11 +551,11 @@ export function useDiceGame(
     const plateLathe = new THREE.Mesh(
       new THREE.LatheGeometry(createPlateProfile(), 200),
       new THREE.MeshPhysicalMaterial({
-        color: 0xf8f5ed,
-        roughness: 0.3,
+        color: 0xbecfe0,
+        roughness: 0.38,
         metalness: 0.01,
-        clearcoat: 0.88,
-        clearcoatRoughness: 0.2,
+        clearcoat: 0.74,
+        clearcoatRoughness: 0.28,
         side: THREE.DoubleSide
       })
     );
@@ -566,12 +566,12 @@ export function useDiceGame(
     const innerGlaze = new THREE.Mesh(
       new THREE.CircleGeometry(BOWL_FLOOR_RADIUS * 0.98, 128),
       new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
+        color: 0xc5d8eb,
         map: plateTexture,
-        roughness: 0.2,
+        roughness: 0.3,
         metalness: 0.01,
-        clearcoat: 0.9,
-        clearcoatRoughness: 0.18
+        clearcoat: 0.74,
+        clearcoatRoughness: 0.24
       })
     );
     innerGlaze.rotation.x = -Math.PI / 2;
@@ -581,7 +581,7 @@ export function useDiceGame(
 
     const rimStripe = new THREE.Mesh(
       new THREE.TorusGeometry(PLATE_RADIUS - 0.06, 0.008, 16, 144),
-      new THREE.MeshStandardMaterial({ color: 0x20b9d8, roughness: 0.3, metalness: 0.08 })
+      new THREE.MeshStandardMaterial({ color: 0x2d83bf, roughness: 0.36, metalness: 0.09 })
     );
     rimStripe.position.y = 0.165;
     rimStripe.rotation.x = Math.PI / 2;
@@ -770,9 +770,9 @@ export function useDiceGame(
   }, []); // Empty dependency array - only create once
 
   // Launch dice
-  const launchDice = useCallback((faceDistribution: Record<GradeKey, number>) => {
+  const launchDice = useCallback((faceDistribution: Record<GradeKey, number>, launchPlan?: DiceLaunchPlan) => {
     const r = refs.current;
-    if (!r.world || !r.dice) return;
+    if (!r.world || !r.dice) return false;
 
     // Helper function inside launchDice
     const createDiceFaceTexture = (label: string, accent: string) => {
@@ -851,18 +851,24 @@ export function useDiceGame(
       });
     };
 
-    // Expand face distribution to layout
-    const layout: string[] = [];
-    for (const key of GRADE_KEYS) {
-      const count = faceDistribution[key] || 0;
-      for (let n = 0; n < count; n++) {
-        layout.push(key);
-      }
-    }
+    // Expand face distribution to layout (or use server-provided layout)
+    const layout: string[] =
+      launchPlan?.face_layout && launchPlan.face_layout.length === 6
+        ? [...launchPlan.face_layout]
+        : (() => {
+            const localLayout: string[] = [];
+            for (const key of GRADE_KEYS) {
+              const count = faceDistribution[key] || 0;
+              for (let n = 0; n < count; n++) {
+                localLayout.push(key);
+              }
+            }
+            return localLayout;
+          })();
 
     if (layout.length !== 6) {
       console.error('Invalid face distribution, must sum to 6');
-      return;
+      return false;
     }
 
     // Apply face layout to dice
@@ -885,49 +891,71 @@ export function useDiceGame(
     r.rollingTime = 0;
     r.sampleAccumulator = 0;
     r.hasPreviousSample = false;
+    r.liveValues = ['U', 'U', 'U'];
     setIsRolling(true);
 
     // Launch each die
     for (let i = 0; i < r.dice.length; i++) {
       const die = r.dice[i].body;
-      const launchX = -1.35 + THREE.MathUtils.randFloatSpread(0.18);
-      const launchY = 1.2 + i * 0.12 + THREE.MathUtils.randFloat(0, 0.1);
-      const launchZ = (i - 1) * 0.28 + THREE.MathUtils.randFloatSpread(0.18);
-
-      die.position.set(launchX, launchY, launchZ);
       die.velocity.set(0, 0, 0);
       die.angularVelocity.set(0, 0, 0);
       die.force.set(0, 0, 0);
       die.torque.set(0, 0, 0);
 
-      die.quaternion.setFromEuler(
-        THREE.MathUtils.randFloat(0, Math.PI * 2),
-        THREE.MathUtils.randFloat(0, Math.PI * 2),
-        THREE.MathUtils.randFloat(0, Math.PI * 2)
-      );
+      const serverPlan = launchPlan?.dice_states?.[i];
+      if (serverPlan) {
+        die.position.set(serverPlan.position[0], serverPlan.position[1], serverPlan.position[2]);
+        die.quaternion.setFromEuler(
+          serverPlan.rotation_euler[0],
+          serverPlan.rotation_euler[1],
+          serverPlan.rotation_euler[2]
+        );
+        die.velocity.set(serverPlan.velocity[0], serverPlan.velocity[1], serverPlan.velocity[2]);
+        die.angularVelocity.set(
+          serverPlan.angular_velocity[0],
+          serverPlan.angular_velocity[1],
+          serverPlan.angular_velocity[2]
+        );
+      } else {
+        const launchX = -1.35 + THREE.MathUtils.randFloatSpread(0.18);
+        const launchY = 1.2 + i * 0.12 + THREE.MathUtils.randFloat(0, 0.1);
+        const launchZ = (i - 1) * 0.28 + THREE.MathUtils.randFloatSpread(0.18);
 
-      const target = new CANNON.Vec3(
-        THREE.MathUtils.randFloat(-0.1, 0.1),
-        0.26,
-        THREE.MathUtils.randFloat(-0.24, 0.24)
-      );
-      const direction = target.vsub(die.position);
-      direction.normalize();
-      direction.x += THREE.MathUtils.randFloatSpread(DIRECTION_SPREAD);
-      direction.y += THREE.MathUtils.randFloat(-0.03, 0.06);
-      direction.z += THREE.MathUtils.randFloatSpread(DIRECTION_SPREAD);
-      direction.normalize();
+        die.position.set(launchX, launchY, launchZ);
+        die.quaternion.setFromEuler(
+          THREE.MathUtils.randFloat(0, Math.PI * 2),
+          THREE.MathUtils.randFloat(0, Math.PI * 2),
+          THREE.MathUtils.randFloat(0, Math.PI * 2)
+        );
 
-      const speed = THREE.MathUtils.randFloat(BASE_LAUNCH_SPEED_MIN, BASE_LAUNCH_SPEED_MAX);
-      die.velocity.set(direction.x * speed, direction.y * speed + THREE.MathUtils.randFloat(1.35, 2.35), direction.z * speed);
-      die.angularVelocity.set(
-        THREE.MathUtils.randFloat(-48, 48),
-        THREE.MathUtils.randFloat(-44, 44),
-        THREE.MathUtils.randFloat(-48, 48)
-      );
+        const target = new CANNON.Vec3(
+          THREE.MathUtils.randFloat(-0.1, 0.1),
+          0.26,
+          THREE.MathUtils.randFloat(-0.24, 0.24)
+        );
+        const direction = target.vsub(die.position);
+        direction.normalize();
+        direction.x += THREE.MathUtils.randFloatSpread(DIRECTION_SPREAD);
+        direction.y += THREE.MathUtils.randFloat(-0.03, 0.06);
+        direction.z += THREE.MathUtils.randFloatSpread(DIRECTION_SPREAD);
+        direction.normalize();
+
+        const speed = THREE.MathUtils.randFloat(BASE_LAUNCH_SPEED_MIN, BASE_LAUNCH_SPEED_MAX);
+        die.velocity.set(
+          direction.x * speed,
+          direction.y * speed + THREE.MathUtils.randFloat(1.35, 2.35),
+          direction.z * speed
+        );
+        die.angularVelocity.set(
+          THREE.MathUtils.randFloat(-48, 48),
+          THREE.MathUtils.randFloat(-44, 44),
+          THREE.MathUtils.randFloat(-48, 48)
+        );
+      }
 
       die.wakeUp();
     }
+    return true;
   }, []);
 
   // Cleanup

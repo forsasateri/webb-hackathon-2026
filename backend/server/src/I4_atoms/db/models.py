@@ -21,6 +21,7 @@ class User(Base):
 
     enrollments: Mapped[list["Enrollment"]] = relationship("Enrollment", back_populates="user")
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
+    dice_rolls: Mapped[list["DiceRoll"]] = relationship("DiceRoll", back_populates="user")
 
 
 class Course(Base):
@@ -38,6 +39,7 @@ class Course(Base):
     time_slots: Mapped[list["TimeSlot"]] = relationship("TimeSlot", back_populates="course", cascade="all, delete-orphan")
     enrollments: Mapped[list["Enrollment"]] = relationship("Enrollment", back_populates="course")
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="course")
+    dice_rolls: Mapped[list["DiceRoll"]] = relationship("DiceRoll", back_populates="course")
 
 
 class TimeSlot(Base):
@@ -96,6 +98,46 @@ class Enrollment(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="enrollments")
     course: Mapped["Course"] = relationship("Course", back_populates="enrollments")
+    dice_rolls: Mapped[list["DiceRoll"]] = relationship("DiceRoll", back_populates="enrollment")
+
+
+class DiceRoll(Base):
+    __tablename__ = "dice_rolls"
+    __table_args__ = (
+        UniqueConstraint("user_id", "course_id", "attempt_number"),
+        CheckConstraint("attempt_number >= 1"),
+        CheckConstraint("original_score >= 0 AND original_score <= 100"),
+        CheckConstraint("score_before >= 0 AND score_before <= 100"),
+        CheckConstraint("score_after >= 0 AND score_after <= 100"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    course_id: Mapped[int] = mapped_column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    enrollment_id: Mapped[int] = mapped_column(Integer, ForeignKey("enrollments.id", ondelete="CASCADE"), nullable=False)
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="PENDING")
+    original_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    score_before: Mapped[int] = mapped_column(Integer, nullable=False)
+    score_after: Mapped[int] = mapped_column(Integer, nullable=False)
+    grade_before: Mapped[str] = mapped_column(String, nullable=False)
+    grade_after: Mapped[str] = mapped_column(String, nullable=False)
+    face_layout_json: Mapped[str] = mapped_column(Text, nullable=False)
+    launch_params_json: Mapped[str] = mapped_column(Text, nullable=False)
+    planned_dice_values_json: Mapped[str] = mapped_column(Text, nullable=False)
+    planned_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    planned_average: Mapped[int] = mapped_column(Integer, nullable=False)
+    planned_grade: Mapped[str] = mapped_column(String, nullable=False)
+    client_dice_values_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    client_average: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    client_grade: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", back_populates="dice_rolls")
+    course: Mapped["Course"] = relationship("Course", back_populates="dice_rolls")
+    enrollment: Mapped["Enrollment"] = relationship("Enrollment", back_populates="dice_rolls")
 
 
 if __name__ == "__main__":

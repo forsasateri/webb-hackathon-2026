@@ -11,17 +11,46 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 from datetime import datetime
+import json
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from server.src.I4_atoms.db.models import Course, Enrollment, TimeSlot
+from server.src.I4_atoms.db.models import Course, Enrollment, TimeSlot, DiceRoll
 from server.src.I4_atoms.validators.schedule_validator import check_slot_conflict
 from server.src.I4_atoms.types.schemas import (
+    DiceRollHistoryEntry,
+    DiceSummary,
     EnrollmentCourseResponse,
     ScheduleEntry,
     ScheduleResponse,
     TimeSlotResponse,
 )
+
+MAX_DICE_ROLL_ATTEMPTS = 3
+DICE_COUNT = 3
+
+
+def _safe_json_list(raw: str | None) -> list:
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, list) else []
+    except json.JSONDecodeError:
+        return []
+
+def _build_launch_plan(face_layout_raw: str | None, launch_params_raw: str | None) -> dict | None:
+    face_layout = _safe_json_list(face_layout_raw)
+    dice_states = _safe_json_list(launch_params_raw)
+    if not isinstance(face_layout, list) or not isinstance(dice_states, list):
+        return None
+    if len(face_layout) != 6 or len(dice_states) != DICE_COUNT:
+        # We do not hard-fail history rendering when legacy records exist.
+        return None
+    return {
+        "face_layout": face_layout,
+        "dice_states": dice_states,
+    }
 
 
 def enroll(db: Session, user_id: int, course_id: int) -> dict:
@@ -144,6 +173,16 @@ def get_schedule(db: Session, user_id: int) -> ScheduleResponse:
         .filter(Enrollment.user_id == user_id)
         .all()
     )
+    all_rolls = (
+        db.query(DiceRoll)
+        .filter(DiceRoll.user_id == user_id)
+        .order_by(DiceRoll.created_at.asc(), DiceRoll.id.asc())
+        .all()
+    )
+
+    rolls_by_course: dict[int, list[DiceRoll]] = {}
+    for roll in all_rolls:
+        rolls_by_course.setdefault(roll.course_id, []).append(roll)
 
     schedule_entries = []
     total_credits = 0
@@ -156,6 +195,30 @@ def get_schedule(db: Session, user_id: int) -> ScheduleResponse:
         time_slots = [
             TimeSlotResponse(id=ts.id, period=ts.period, slot=ts.slot)
             for ts in course.time_slots
+        ]
+        course_rolls = rolls_by_course.get(enr.course_id, [])
+        attempts_used = len(course_rolls)
+        attempts_left = max(0, MAX_DICE_ROLL_ATTEMPTS - attempts_used)
+        original_score = course_rolls[0].original_score if course_rolls else enr.score
+        last_roll_at = course_rolls[-1].created_at if course_rolls else None
+
+        dice_history = [
+            DiceRollHistoryEntry(
+                roll_id=roll.id,
+                attempt_number=roll.attempt_number,
+                status=roll.status,
+                score_before=roll.score_before,
+                score_after=roll.score_after,
+                grade_before=roll.grade_before,
+                grade_after=roll.grade_after,
+                dice_values=_safe_json_list(roll.client_dice_values_json) or _safe_json_list(roll.planned_dice_values_json),
+                average=roll.client_average if roll.client_average is not None else roll.planned_average,
+                total=roll.client_total if roll.client_total is not None else roll.planned_total,
+                launch_plan=_build_launch_plan(roll.face_layout_json, roll.launch_params_json),
+                created_at=roll.created_at,
+                finalized_at=roll.finalized_at,
+            )
+            for roll in course_rolls
         ]
 
         entry = ScheduleEntry(
@@ -172,6 +235,15 @@ def get_schedule(db: Session, user_id: int) -> ScheduleResponse:
             enrolled_at=enr.enrolled_at,
             finished_status=enr.finished_status,
             score=enr.score,
+            dice_summary=DiceSummary(
+                max_attempts=MAX_DICE_ROLL_ATTEMPTS,
+                attempts_used=attempts_used,
+                attempts_left=attempts_left,
+                original_score=original_score,
+                current_score=enr.score,
+                last_roll_at=last_roll_at,
+            ),
+            dice_history=dice_history,
         )
         schedule_entries.append(entry)
         total_credits += course.credits

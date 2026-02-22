@@ -1,3 +1,5 @@
+import type { DiceHistoryEntry, DiceSummary } from '../../api/enrollment';
+
 export interface DiceRollResult {
   /** Individual dice values (e.g., ['U', '4', '5']) */
   diceValues: string[];
@@ -10,14 +12,12 @@ export interface DiceRollResult {
 }
 
 export interface RollTheDiceProps {
-  /** Current grade score to base the roll on */
-  currentGrade: string;
-  /** Callback when roll completes with result */
-  onRollComplete?: (result: DiceRollResult) => void;
-  /** Callback during rolling with live values */
-  onRollUpdate?: (status: 'rolling' | 'complete', values: string[], average: string) => void;
-  /** Whether the dice game is disabled */
-  disabled?: boolean;
+  courseId: number;
+  courseCode?: string;
+  currentScore: number | null;
+  diceSummary?: DiceSummary;
+  diceHistory?: DiceHistoryEntry[];
+  onRollCommitted?: () => Promise<void> | void;
 }
 
 export interface GameState {

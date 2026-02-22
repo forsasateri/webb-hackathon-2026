@@ -3,11 +3,11 @@ import { useState } from 'react';
 import type { ScheduleEntry } from '../api/enrollment';
 import { RollTheDice } from './rollTheDice';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
-// Convert numeric score (0-100) to Swedish grade (U/3/4/5)
-const convertToSwedishGrade = (score: number | null): string => {
+// Convert numeric score (0-100) to grade (U/3/4/5)
+const convertToGrade = (score: number | null): string => {
   if (score === null) return 'In Progress';
   if (score < 50) return 'U';
   if (score < 70) return '3';
@@ -17,9 +17,10 @@ const convertToSwedishGrade = (score: number | null): string => {
 
 interface GradesPageProps {
   scheduleEntries: ScheduleEntry[];
+  onScheduleChanged?: () => Promise<void>;
 }
 
-export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
+export const GradesPage = ({ scheduleEntries, onScheduleChanged }: GradesPageProps) => {
   // Filter for completed courses (finished_status = true)
   const completedCourses = scheduleEntries.filter(
     (entry) => entry.finished_status
@@ -32,6 +33,13 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
   const selectedEntry = completedCourses.find(
     (entry) => entry.course.id === selectedId
   );
+  const currentScore = selectedEntry
+    ? (selectedEntry.dice_summary?.current_score ?? selectedEntry.score)
+    : null;
+  const originalScore = selectedEntry
+    ? (selectedEntry.dice_summary?.original_score ?? currentScore)
+    : null;
+  const currentGrade = convertToGrade(currentScore);
 
   return (
     <div style={{ textAlign: 'center', marginTop: '40px', paddingBottom: '32px' }}>
@@ -60,20 +68,36 @@ export const GradesPage = ({ scheduleEntries }: GradesPageProps) => {
               <Title level={4}>
                 {selectedEntry.course.code} - {selectedEntry.course.name}
               </Title>
-              <p><strong>Numeric Score:</strong> {selectedEntry.score}/100</p>
-              <p><strong>Swedish Grade:</strong> {convertToSwedishGrade(selectedEntry.score)}</p>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '10px' }}>
+              <Title
+                level={2}
+                style={{
+                  marginTop: 4,
+                  marginBottom: 6,
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-display)',
+                }}
+              >
+                Grade: {currentGrade}
+              </Title>
+              <Text style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginTop: 2 }}>
+                {originalScore !== null ? `Original Score: ${originalScore}/100` : 'Original Score: N/A'}
+              </Text>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '12px' }}>
                 Grading scale: 0-49=U, 50-69=3, 70-84=4, 85-100=5
               </p>
             </Card>
           )}
 
           {/* Dice Game Integration */}
-          {selectedEntry && selectedEntry.score !== null && (
+          {selectedEntry && currentScore !== null && (
             <RollTheDice
               key={selectedEntry.course.id}
-              currentScore={convertToSwedishGrade(selectedEntry.score)}
+              courseId={selectedEntry.course.id}
+              currentScore={currentScore}
               courseCode={selectedEntry.course.code}
+              diceSummary={selectedEntry.dice_summary}
+              diceHistory={selectedEntry.dice_history}
+              onRollCommitted={onScheduleChanged}
             />
           )}
         </>
